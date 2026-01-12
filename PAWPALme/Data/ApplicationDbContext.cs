@@ -17,7 +17,8 @@ namespace PAWPALme.Data
 
             builder.Entity<Shelter>()
                 .HasIndex(s => s.OwnerUserId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[OwnerUserId] IS NOT NULL");
 
             builder.Entity<Pet>()
                 .HasOne<Shelter>()
@@ -27,4 +28,5 @@ namespace PAWPALme.Data
         }
     }
 }
+
 

@@ -1,10 +1,8 @@
 ﻿@page "/auth"
 @rendermode InteractiveServer
 @using System.Security.Claims
-@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
 @using PAWPALme.Data
-@using PAWPALme.Models
 @using PAWPALme.Services
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
@@ -42,16 +40,16 @@
     <div style="width: 100%; max-width: 460px;">
 
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="btn-group" role="group">
+            <div class="btn-group" role="group" aria-label="Account type">
                 <button type="button"
                         class="btn pp-pill @(authType == AuthType.Adopter ? "btn-primary" : "btn-light") fw-semibold"
                         @onclick="() => SetAuthType(AuthType.Adopter)">
-                    Adopter
+                    Adopters
                 </button>
                 <button type="button"
                         class="btn pp-pill @(authType == AuthType.Shelter ? "btn-primary" : "btn-light") fw-semibold"
                         @onclick="() => SetAuthType(AuthType.Shelter)">
-                    Shelter
+                    Shelters
                 </button>
             </div>
 
@@ -73,7 +71,12 @@
                 <div class="alert alert-danger py-2">@errorMessage</div>
             }
 
-            <EditForm Model="form" OnValidSubmit="HandleSubmit" method="post" FormName="auth">
+            @if (!string.IsNullOrWhiteSpace(infoMessage))
+            {
+                <div class="alert alert-info py-2">@infoMessage</div>
+            }
+
+            <EditForm Model="form" OnValidSubmit="HandleSubmit">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
 
@@ -175,6 +178,7 @@
     private bool showPassword = false;
 
     private string? errorMessage;
+    private string? infoMessage;
 
     private AuthType authType = AuthType.Adopter;
     private AuthForm form = new();
@@ -189,7 +193,7 @@
     {
         authType = type;
         isAdminMode = false;
-        errorMessage = null;
+        ResetMessages();
         form = new AuthForm();
     }
 
@@ -197,35 +201,44 @@
     {
         isAdminMode = true;
         isLoginMode = true;
-        errorMessage = null;
+        ResetMessages();
     }
 
     private void ToggleMode()
     {
         isLoginMode = !isLoginMode;
-        errorMessage = null;
+        ResetMessages();
         form = new AuthForm();
     }
 
     private void TogglePassword() => showPassword = !showPassword;
 
-    private async Task HandleSubmit()
+    private void ResetMessages()
     {
         errorMessage = null;
+        infoMessage = null;
+    }
 
-        if (isLoginMode) await HandleLogin();
-        else await HandleRegister();
+    private async Task HandleSubmit()
+    {
+        ResetMessages();
+
+        if (isLoginMode)
+            await HandleLogin();
+        else
+            await HandleRegister();
     }
 
     private async Task HandleLogin()
     {
-        if (string.IsNullOrWhiteSpace(form.Email))
+        var email = (form.Email ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(email))
         {
             errorMessage = "Email is required.";
             return;
         }
 
-        var user = await UserManager.FindByEmailAsync(form.Email.Trim());
+        var user = await UserManager.FindByEmailAsync(email) ?? await UserManager.FindByNameAsync(email);
         if (user is null)
         {
             errorMessage = "Account not found.";
@@ -251,6 +264,7 @@
         }
 
         var result = await SignInManager.PasswordSignInAsync(user.UserName!, form.Password ?? "", false, false);
+
         if (!result.Succeeded)
         {
             errorMessage = "Invalid login attempt.";
@@ -262,6 +276,12 @@
 
     private async Task HandleRegister()
     {
+        if (isAdminMode)
+        {
+            errorMessage = "Admin accounts cannot be created here.";
+            return;
+        }
+
         if (!string.Equals(form.Password, form.ConfirmPassword, StringComparison.Ordinal))
         {
             errorMessage = "Passwords do not match.";
@@ -310,20 +330,16 @@
         {
             await UserManager.AddToRoleAsync(user, "Shelter");
 
-            var shelter = new Shelter
-            {
-                OwnerUserId = user.Id,
-                Name = form.ShelterName!.Trim(),
-                Address = (form.ShelterAddress ?? "").Trim(),
-                Phone = (form.ShelterPhone ?? "").Trim(),
-                Description = (form.ShelterDescription ?? "").Trim()
-            };
-
-            await ShelterService.CreateShelterForOwnerAsync(shelter);
+            var ownerUserId = user.Id;
+            await ShelterService.CreateOrUpdateShelterForOwnerAsync(
+                ownerUserId,
+                form.ShelterName!.Trim(),
+                (form.ShelterAddress ?? "").Trim(),
+                (form.ShelterPhone ?? "").Trim(),
+                (form.ShelterDescription ?? "").Trim());
         }
 
         await SignInManager.SignInAsync(user, isPersistent: false);
-
         Nav.NavigateTo(ResolvePostRegisterTarget(), replace: true);
     }
 
@@ -343,24 +359,32 @@
 
     private sealed class AuthForm
     {
-        [System.ComponentModel.DataAnnotations.Required]
-        public string Email { get; set; } = "";
+        public string? Email { get; set; }
 
-        [System.ComponentModel.DataAnnotations.Required]
-        public string Password { get; set; } = "";
+        public string? Password { get; set; }
 
-        public string ConfirmPassword { get; set; } = "";
+        public string? ConfirmPassword { get; set; }
 
         public string? AdopterName { get; set; }
 
         public string? ShelterName { get; set; }
+
         public string? ShelterAddress { get; set; }
+
         public string? ShelterPhone { get; set; }
+
         public string? ShelterDescription { get; set; }
     }
 
-    private enum AuthType { Adopter, Shelter }
+    private enum AuthType
+    {
+        Adopter,
+        Shelter
+    }
 }
+
+
+
 
 
 

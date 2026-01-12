@@ -16,35 +16,55 @@ namespace PAWPALme.Services
         public async Task<List<Shelter>> GetSheltersAsync()
         {
             using var context = _factory.CreateDbContext();
-            return await context.Shelter
-                .AsNoTracking()
-                .OrderBy(s => s.Name)
-                .ToListAsync();
+            return await context.Shelter.OrderBy(s => s.Name).ToListAsync();
         }
 
         public async Task<Shelter?> GetShelterByIdAsync(int id)
         {
             using var context = _factory.CreateDbContext();
-            return await context.Shelter.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
+            return await context.Shelter.FindAsync(id);
         }
 
         public async Task<Shelter?> GetShelterByOwnerUserIdAsync(string ownerUserId)
         {
             using var context = _factory.CreateDbContext();
-            return await context.Shelter.AsNoTracking().FirstOrDefaultAsync(s => s.OwnerUserId == ownerUserId);
+            return await context.Shelter.FirstOrDefaultAsync(s => s.OwnerUserId == ownerUserId);
         }
 
-        public async Task<Shelter> CreateShelterForOwnerAsync(Shelter shelter)
+        public async Task<int> CreateOrUpdateShelterForOwnerAsync(
+            string ownerUserId,
+            string name,
+            string? address,
+            string? phone,
+            string? description)
         {
             using var context = _factory.CreateDbContext();
 
-            var exists = await context.Shelter.AnyAsync(s => s.OwnerUserId == shelter.OwnerUserId);
-            if (exists)
-                throw new InvalidOperationException("This user already has a shelter profile.");
+            var shelter = await context.Shelter.FirstOrDefaultAsync(s => s.OwnerUserId == ownerUserId);
 
-            context.Shelter.Add(shelter);
+            if (shelter == null)
+            {
+                shelter = new Shelter
+                {
+                    OwnerUserId = ownerUserId,
+                    Name = name,
+                    Address = address,
+                    Phone = phone,
+                    Description = description
+                };
+                context.Shelter.Add(shelter);
+            }
+            else
+            {
+                shelter.Name = name;
+                shelter.Address = address;
+                shelter.Phone = phone;
+                shelter.Description = description;
+                context.Shelter.Update(shelter);
+            }
+
             await context.SaveChangesAsync();
-            return shelter;
+            return shelter.Id;
         }
 
         public async Task AddShelterAsync(Shelter shelter)
@@ -65,14 +85,13 @@ namespace PAWPALme.Services
         {
             using var context = _factory.CreateDbContext();
             var shelter = await context.Shelter.FindAsync(id);
-            if (shelter is null) return;
-
             var hasPets = await context.Pet.AnyAsync(p => p.ShelterId == id);
-            if (hasPets)
-                throw new InvalidOperationException("Cannot delete a shelter that still has pets.");
 
-            context.Shelter.Remove(shelter);
-            await context.SaveChangesAsync();
+            if (shelter != null && !hasPets)
+            {
+                context.Shelter.Remove(shelter);
+                await context.SaveChangesAsync();
+            }
         }
     }
 }
