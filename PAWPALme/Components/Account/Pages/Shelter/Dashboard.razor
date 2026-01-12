@@ -1,0 +1,77 @@
+﻿@page "/shelter/dashboard"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using PAWPALme.Models
+@using PAWPALme.Services
+@attribute [Authorize(Roles = "Shelter")]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ShelterService ShelterService
+
+<PageTitle>Shelter Dashboard</PageTitle>
+
+<div class="container mt-4">
+    <h2 class="mb-3">Shelter Dashboard</h2>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+    else if (shelter is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-1">@shelter.Name</h5>
+                <div class="text-muted small mb-2">@shelter.Address</div>
+
+                @if (!string.IsNullOrWhiteSpace(shelter.Phone))
+                {
+                    <div class="small"><strong>Phone:</strong> @shelter.Phone</div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(shelter.Description))
+                {
+                    <div class="small mt-2 text-muted">@shelter.Description</div>
+                }
+
+                <div class="mt-3">
+                    <a class="btn btn-outline-primary" href="/admin/pets">Manage Pets (temporary)</a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private Shelter? shelter;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = state.User;
+
+            var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                error = "Unable to resolve user id.";
+                return;
+            }
+
+            shelter = await ShelterService.GetShelterByOwnerUserIdAsync(userId);
+            if (shelter is null)
+                error = "Shelter profile not found for this account.";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}
+

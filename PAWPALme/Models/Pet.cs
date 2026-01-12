@@ -7,24 +7,30 @@ namespace PAWPALme.Models
         [Key]
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "Name is required")]
+        [Required, StringLength(80)]
         public string Name { get; set; } = "";
 
-        [Required]
-        public string Species { get; set; } = "Dog"; // FOR FILTERS
+        [Required, StringLength(50)]
+        public string Species { get; set; } = "";
 
+        [StringLength(80)]
         public string Breed { get; set; } = "";
 
-        [Range(0, 30, ErrorMessage = "Age must be between 0 and 30")]
+        [Range(0, 50)]
         public int Age { get; set; }
 
+        [Required, StringLength(30)]
+        public string Status { get; set; } = "Available";
+
+        [StringLength(500)]
+        public string Description { get; set; } = "";
+
+        [StringLength(400)]
         public string? ImageUrl { get; set; }
 
-        public string? Description { get; set; }
-
-        public string Status { get; set; } = "Available"; // Available, Adopted, Pending
-
-        // Relationship
+        [Required]
         public int ShelterId { get; set; }
+
+        public Shelter? Shelter { get; set; }
     }
 }

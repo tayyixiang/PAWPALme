@@ -13,7 +13,6 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
 
-        <!-- Public nav -->
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
@@ -32,7 +31,6 @@
             </NavLink>
         </div>
 
-        <!-- Admin nav (only shows for Admin role) -->
         <AuthorizeView Roles="Admin">
             <Authorized>
                 <div class="nav-item px-3 mt-3">
@@ -63,7 +61,6 @@
             </Authorized>
         </AuthorizeView>
 
-        <!-- Auth links -->
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item px-3">
@@ -82,20 +79,6 @@
                     </form>
                 </div>
             </Authorized>
-
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
         </AuthorizeView>
 
     </nav>
@@ -121,5 +104,6 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
+
 
 

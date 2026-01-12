@@ -13,20 +13,40 @@ namespace PAWPALme.Services
             _factory = factory;
         }
 
-        // --- READ ---
         public async Task<List<Shelter>> GetSheltersAsync()
         {
             using var context = _factory.CreateDbContext();
-            return await context.Shelter.ToListAsync();
+            return await context.Shelter
+                .AsNoTracking()
+                .OrderBy(s => s.Name)
+                .ToListAsync();
         }
 
         public async Task<Shelter?> GetShelterByIdAsync(int id)
         {
             using var context = _factory.CreateDbContext();
-            return await context.Shelter.FindAsync(id);
+            return await context.Shelter.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
         }
 
-        // --- WRITE ---
+        public async Task<Shelter?> GetShelterByOwnerUserIdAsync(string ownerUserId)
+        {
+            using var context = _factory.CreateDbContext();
+            return await context.Shelter.AsNoTracking().FirstOrDefaultAsync(s => s.OwnerUserId == ownerUserId);
+        }
+
+        public async Task<Shelter> CreateShelterForOwnerAsync(Shelter shelter)
+        {
+            using var context = _factory.CreateDbContext();
+
+            var exists = await context.Shelter.AnyAsync(s => s.OwnerUserId == shelter.OwnerUserId);
+            if (exists)
+                throw new InvalidOperationException("This user already has a shelter profile.");
+
+            context.Shelter.Add(shelter);
+            await context.SaveChangesAsync();
+            return shelter;
+        }
+
         public async Task AddShelterAsync(Shelter shelter)
         {
             using var context = _factory.CreateDbContext();
@@ -45,14 +65,15 @@ namespace PAWPALme.Services
         {
             using var context = _factory.CreateDbContext();
             var shelter = await context.Shelter.FindAsync(id);
-            // Check if shelter has pets before deleting (Optional safety)
-            var hasPets = await context.Pet.AnyAsync(p => p.ShelterId == id);
+            if (shelter is null) return;
 
-            if (shelter != null && !hasPets)
-            {
-                context.Shelter.Remove(shelter);
-                await context.SaveChangesAsync();
-            }
+            var hasPets = await context.Pet.AnyAsync(p => p.ShelterId == id);
+            if (hasPets)
+                throw new InvalidOperationException("Cannot delete a shelter that still has pets.");
+
+            context.Shelter.Remove(shelter);
+            await context.SaveChangesAsync();
         }
     }
 }
+

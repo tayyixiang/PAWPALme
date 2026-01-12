@@ -1,13 +1,25 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
 @using PAWPALme.Models
 @using PAWPALme.Services
 @inject PetService PetService
+@inject NavigationManager Nav
 
 <PageTitle>Home</PageTitle>
 
 <div class="container mt-4">
 
-    <!-- HERO / LANDING -->
+    <div class="d-flex justify-content-end mb-3">
+        <AuthorizeView>
+            <Authorized>
+                <a class="btn btn-outline-secondary" href="/Account/Manage">Account</a>
+            </Authorized>
+            <NotAuthorized>
+                <a class="btn btn-primary" href="/auth">Login / Sign up</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+
     <div class="p-4 p-md-5 mb-4 rounded-3 border shadow-sm bg-white">
         <div class="row align-items-center g-4">
             <div class="col-md-7">
@@ -19,7 +31,6 @@
 
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-success btn-lg" href="/pets">Browse Pets</a>
-                    <a class="btn btn-outline-secondary btn-lg" href="/Account/Register">Create Account</a>
                 </div>
 
                 <div class="mt-3 text-muted small">
@@ -40,7 +51,6 @@
         </div>
     </div>
 
-    <!-- FEATURED PETS -->
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h3 class="mb-0">Featured Pets</h3>
         <a class="btn btn-outline-primary btn-sm" href="/pets">View all</a>
@@ -70,7 +80,6 @@
             {
                 <div class="col-12 col-sm-6 col-lg-4">
                     <div class="card h-100 shadow-sm">
-
                         @if (!string.IsNullOrWhiteSpace(pet.ImageUrl))
                         {
                             <img src="@pet.ImageUrl"
@@ -118,14 +127,12 @@
                                 Browse
                             </a>
                         </div>
-
                     </div>
                 </div>
             }
         </div>
     }
 
-    <!-- HOW IT WORKS -->
     <div class="mt-5">
         <h4>How it works</h4>
         <div class="row g-3 mt-1">
@@ -160,12 +167,10 @@
     {
         try
         {
-            // Use your existing PetService signature:
-            // GetPetsAsync(string? searchTerm, string? species, string? breed, int? minAge, int? shelterId)
             var allPets = await PetService.GetPetsAsync(null, null, null, null, null);
 
             featuredPets = allPets
-                .Where(p => p.Status == "Available")
+                .Where(p => string.Equals(p.Status, "Available", StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(p => p.Id)
                 .Take(6)
                 .ToList();
