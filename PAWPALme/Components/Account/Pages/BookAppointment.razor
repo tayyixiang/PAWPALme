@@ -2,10 +2,13 @@
 @using PAWPALme.Models
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
 @inject IAppointmentRepository ApptRepo
 @inject IPetRepository PetRepo
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Book a Visit</PageTitle>
 
@@ -17,38 +20,39 @@
         <div class="card-body">
             <p class="text-muted">Schedule a time to visit this pet at the shelter.</p>
 
-            <EditForm Model="appointment" OnValidSubmit="SaveAppointment">
+            @* FIX: Added FormName and bound to a single InputModel *@
+            <EditForm Model="Input" OnValidSubmit="SaveAppointment" FormName="book-appointment">
                 <DataAnnotationsValidator />
                 <ValidationSummary class="text-danger" />
 
                 <div class="mb-3">
                     <label class="form-label">Preferred Date</label>
-                    <InputDate class="form-control" @bind-Value="appointment.AppointmentDate" />
+                    <InputDate class="form-control" @bind-Value="Input.Date" />
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Preferred Time</label>
-                    <input type="time" class="form-control" @bind="AppointmentTimeBinder" />
+                    <input type="time" class="form-control" @bind="Input.Time" />
                 </div>
 
                 <div class="row g-2 mb-3">
                     <div class="col-md-6">
                         <label class="form-label">Your Name</label>
-                        <InputText class="form-control" @bind-Value="applicationStub.ApplicantName" placeholder="Required" />
+                        <InputText class="form-control" @bind-Value="Input.ApplicantName" placeholder="Required" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Email</label>
-                        <InputText class="form-control" @bind-Value="applicationStub.ApplicantEmail" placeholder="Required" />
+                        <InputText class="form-control" @bind-Value="Input.ApplicantEmail" placeholder="Required" />
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Notes</label>
-                    <InputTextArea class="form-control" @bind-Value="appointment.Notes" />
+                    <InputTextArea class="form-control" @bind-Value="Input.Notes" rows="3" />
                 </div>
 
                 <div class="d-flex justify-content-between mt-4">
-                    <a href="/pets" class="btn btn-secondary">Cancel</a>
+                    <a href="pets" class="btn btn-secondary">Cancel</a>
                     <button type="submit" class="btn btn-success">Confirm Booking</button>
                 </div>
             </EditForm>
@@ -59,56 +63,98 @@
 @code {
     [Parameter] public int PetId { get; set; }
 
-    private Appointment appointment = new();
-    private AdoptionApplication applicationStub = new();
-    private string petName = "your new friend";
+    [SupplyParameterFromForm]
+    private BookingInputModel Input { get; set; } = new();
 
- 
-    private DateTime AppointmentTimeBinder
-    {
-        get => DateTime.Today.Add(appointment.AppointmentTime);
-        set => appointment.AppointmentTime = value.TimeOfDay;
-    }
+    private string petName = "your new friend";
+    private int shelterId;
 
     protected override async Task OnInitializedAsync()
     {
+        // Load Pet Details (Visuals only)
         var pet = await PetRepo.GetByIdAsync(PetId);
         if (pet != null)
         {
             petName = pet.Name;
-            applicationStub.PetId = pet.Id;
-            appointment.AdoptionApplication = applicationStub;
+            shelterId = pet.ShelterId;
         }
-
-        // ✅ FIX: Link to Logged-in User
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity?.IsAuthenticated ?? false)
+        else
         {
-            // Get the User ID from Claims
-            var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            applicationStub.UserId = userId;
-
-            // Optional: Pre-fill name/email if you have those claims
-            applicationStub.ApplicantName = user.FindFirst("FullName")?.Value ?? user.Identity.Name;
-            applicationStub.ApplicantEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            // Handle invalid pet ID
+            Nav.NavigateTo("pets");
+            return;
         }
 
-        // Defaults
-        appointment.AppointmentDate = DateTime.Now.AddDays(1);
-        appointment.AppointmentTime = new TimeSpan(10, 0, 0);
+        // Only pre-fill if this is a fresh GET request (not a POST back)
+        if (Input.Date == default)
+        {
+            Input.Date = DateTime.Now.AddDays(1);
+            Input.Time = new DateTime(1, 1, 1, 10, 0, 0); // Default 10:00 AM
+
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated ?? false)
+            {
+                Input.ApplicantName = user.FindFirst("FullName")?.Value ?? user.Identity.Name ?? "";
+                Input.ApplicantEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+            }
+        }
     }
 
     private async Task SaveAppointment()
     {
-        // Basic Validation
-        if (string.IsNullOrWhiteSpace(applicationStub.ApplicantName) || string.IsNullOrWhiteSpace(applicationStub.ApplicantEmail))
-        {
-            return;
-        }
+        // 1. Get Current User ID
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        var userId = user?.Id;
 
-        appointment.Status = AppointmentStatus.Pending;
+        // 2. Create the Application Stub (Requirement for Appointment)
+        // Since we are simulating, we create a lightweight application record.
+        var appStub = new AdoptionApplication
+        {
+            ApplicantName = Input.ApplicantName,
+            ApplicantEmail = Input.ApplicantEmail,
+            UserId = userId,
+            PetId = PetId,
+            ApplicationDate = DateTime.Now,
+            Status = ApplicationStatus.Pending
+        };
+        // Note: In a full system, you might save this App Stub to DB first.
+        // For now, we rely on the Appointment -> Pet link we added.
+
+        // 3. Create the Appointment
+        var appointment = new Appointment
+        {
+            AppointmentDate = Input.Date,
+            AppointmentTime = Input.Time.TimeOfDay,
+            Notes = Input.Notes,
+            Status = AppointmentStatus.Pending,
+            PetId = PetId,
+            ShelterId = shelterId,
+            AdopterUserId = userId,
+            // AdoptionApplication = appStub // Optional: Link if you save appStub
+        };
+
         await ApptRepo.AddAsync(appointment);
-        Nav.NavigateTo("/pets");
+        Nav.NavigateTo("my-appointments");
+    }
+
+    // DTO for the Form
+    public class BookingInputModel
+    {
+        [Required]
+        public DateTime Date { get; set; }
+
+        [Required]
+        public DateTime Time { get; set; }
+
+        [Required]
+        public string ApplicantName { get; set; } = "";
+
+        [Required]
+        [EmailAddress]
+        public string ApplicantEmail { get; set; } = "";
+
+        public string? Notes { get; set; }
     }
 }

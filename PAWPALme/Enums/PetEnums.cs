@@ -20,4 +20,13 @@
         Completed,
         Cancelled
     }
+
+    // --- ADD THIS MISSING ENUM ---
+    public enum ApplicationStatus
+    {
+        Pending,
+        UnderReview,
+        Approved,
+        Rejected
+    }
 }

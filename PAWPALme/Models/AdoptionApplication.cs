@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using PAWPALme.Data;
+using PAWPALme.Enums; // Required for the new Enum
 
 namespace PAWPALme.Models
 {
@@ -15,9 +16,12 @@ namespace PAWPALme.Models
         public virtual Pet? Pet { get; set; }
 
         // --- STUB PROPERTIES FOR YIXIANG'S TESTING ---
-        // We store applicant details here so your Appointment form works
-        // without waiting for Nicole's full User System.
         public string? ApplicantName { get; set; }
         public string? ApplicantEmail { get; set; }
+
+        // --- ADD THESE MISSING PROPERTIES ---
+        public DateTime ApplicationDate { get; set; } = DateTime.Now;
+
+        public ApplicationStatus Status { get; set; } = ApplicationStatus.Pending;
     }
 }
