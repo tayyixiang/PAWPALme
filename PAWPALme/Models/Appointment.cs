@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using PAWPALme.Enums;
+using PAWPALme.Data; // IMPORT THIS explicitly
 
 namespace PAWPALme.Models
 {
@@ -17,6 +18,10 @@ namespace PAWPALme.Models
         [DataType(DataType.Time)]
         public TimeSpan AppointmentTime { get; set; }
 
+        // Helper to get full DateTime
+        [NotMapped]
+        public DateTime DateTime => AppointmentDate + AppointmentTime;
+
         [Required]
         public AppointmentStatus Status { get; set; } = AppointmentStatus.Pending;
 
@@ -24,15 +29,22 @@ namespace PAWPALme.Models
         public string? Notes { get; set; }
 
         // --- RELATIONS ---
-        // An appointment MUST be linked to an application.
-        // This is the "Handshake" with Nicole's side.
-        [Required]
-        public int AdoptionApplicationId { get; set; }
 
+        public int? AdoptionApplicationId { get; set; }
         [ForeignKey("AdoptionApplicationId")]
         public virtual AdoptionApplication? AdoptionApplication { get; set; }
 
-        // This tracks WHO (Shelter Staff) managed/updated this appointment
-        public string? ManagedByUserId { get; set; }
+        public int PetId { get; set; }
+        [ForeignKey("PetId")]
+        public virtual Pet? Pet { get; set; }
+
+        public int ShelterId { get; set; }
+        [ForeignKey("ShelterId")]
+        public virtual Shelter? Shelter { get; set; }
+
+        public string? AdopterUserId { get; set; }
+
+        [ForeignKey("AdopterUserId")]
+        public virtual ApplicationUser? AdopterUser { get; set; }
     }
 }

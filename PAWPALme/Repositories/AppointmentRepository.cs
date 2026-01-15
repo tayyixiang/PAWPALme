@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PAWPALme.Data;
 using PAWPALme.Models;
-using PAWPALme.Enums;
 
 namespace PAWPALme.Repositories
 {
@@ -14,33 +13,6 @@ namespace PAWPALme.Repositories
             _factory = factory;
         }
 
-        public async Task<IEnumerable<Appointment>> GetByShelterIdAsync(int shelterId)
-        {
-            using var context = _factory.CreateDbContext();
-            // Complex Query: Get appointments where the linked Pet belongs to this Shelter
-            return await context.Appointment
-                .Include(a => a.AdoptionApplication)
-                .ThenInclude(app => app.Pet)
-                .Include(a => a.AdoptionApplication)
-                .ThenInclude(app => app.User) // Get Adopter info
-                .Where(a => a.AdoptionApplication != null &&
-                            a.AdoptionApplication.Pet != null &&
-                            a.AdoptionApplication.Pet.ShelterId == shelterId)
-                .OrderBy(a => a.AppointmentDate)
-                .ToListAsync();
-        }
-
-        public async Task<Appointment?> GetByIdAsync(int id)
-        {
-            using var context = _factory.CreateDbContext();
-            return await context.Appointment
-                .Include(a => a.AdoptionApplication)
-                .ThenInclude(app => app.Pet)
-                .Include(a => a.AdoptionApplication)
-                .ThenInclude(app => app.User)
-                .FirstOrDefaultAsync(a => a.Id == id);
-        }
-
         public async Task AddAsync(Appointment appointment)
         {
             using var context = _factory.CreateDbContext();
@@ -48,15 +20,41 @@ namespace PAWPALme.Repositories
             await context.SaveChangesAsync();
         }
 
-        public async Task UpdateStatusAsync(int id, AppointmentStatus status)
+        public async Task UpdateAsync(Appointment appointment)
         {
             using var context = _factory.CreateDbContext();
-            var appt = await context.Appointment.FindAsync(id);
-            if (appt != null)
-            {
-                appt.Status = status;
-                await context.SaveChangesAsync();
-            }
+            context.Appointment.Update(appointment);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task<Appointment?> GetByIdAsync(int id)
+        {
+            using var context = _factory.CreateDbContext();
+            return await context.Appointment
+                .Include(a => a.Pet)
+                .Include(a => a.Shelter)
+                .FirstOrDefaultAsync(a => a.Id == id);
+        }
+
+        public async Task<IEnumerable<Appointment>> GetByShelterIdAsync(int shelterId)
+        {
+            using var context = _factory.CreateDbContext();
+            return await context.Appointment
+                .Include(a => a.Pet)
+                .Where(a => a.ShelterId == shelterId)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Appointment>> GetByUserIdAsync(string userId)
+        {
+            using var context = _factory.CreateDbContext();
+            return await context.Appointment
+                .Include(a => a.Pet)
+                .Include(a => a.Shelter)
+                .Where(a => a.AdopterUserId == userId)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
         }
     }
 }

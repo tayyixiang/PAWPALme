@@ -1,0 +1,92 @@
+﻿@page "/pet/{Id:int}"
+@using PAWPALme.Models
+@using PAWPALme.Data
+@using PAWPALme.Repositories
+@using PAWPALme.Enums
+@using Microsoft.AspNetCore.Identity
+@inject IPetRepository PetRepo
+@inject IAppointmentRepository ApptRepo
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Nav
+
+<div class="container mt-5">
+    @if (pet == null)
+    {
+        <p>Pet not found.</p>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <img src="@(string.IsNullOrEmpty(pet.ImageUrl) ? "https://placehold.co/600x400?text=Pet" : pet.ImageUrl)"
+                     class="img-fluid rounded shadow" alt="@pet.Name">
+            </div>
+            <div class="col-md-6">
+                <h1>@pet.Name</h1>
+                <h4 class="text-muted">@pet.Breed • @pet.Age years old • @pet.Size</h4>
+                <hr />
+                <p class="lead">@pet.Description</p>
+
+                <div class="card mt-4 bg-light">
+                    <div class="card-body">
+                        <h5>Interested in @pet.Name?</h5>
+                        <p>Shelter: <strong>@pet.Shelter?.Name</strong></p>
+
+                        <AuthorizeView>
+                            <Authorized>
+                                <button class="btn btn-primary btn-lg" @onclick="BookAppointment">
+                                    Request Appointment
+                                </button>
+                            </Authorized>
+                            <NotAuthorized>
+                                <a href="Account/Login?ReturnUrl=/pet/@Id" class="btn btn-secondary">Log in to Adopt</a>
+                            </NotAuthorized>
+                        </AuthorizeView>
+
+                        @if (bookingSuccess)
+                        {
+                            <div class="alert alert-success mt-3">
+                                Request sent! View status in <a href="my-appointments">My Appointments</a>.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Pet? pet;
+    private bool bookingSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        pet = await PetRepo.GetByIdAsync(Id);
+    }
+
+    private async Task BookAppointment()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+
+        if (user != null && pet != null)
+        {
+            var appt = new Appointment
+            {
+                AppointmentDate = DateTime.Now.AddDays(1).Date, // Default tomorrow
+                AppointmentTime = new TimeSpan(10, 0, 0),       // Default 10:00 AM
+                PetId = pet.Id,
+                ShelterId = pet.ShelterId,
+                AdopterUserId = user.Id,
+                Status = AppointmentStatus.Pending,
+                Notes = "Interest in " + pet.Name
+            };
+
+            await ApptRepo.AddAsync(appt);
+            bookingSuccess = true;
+        }
+    }
+}

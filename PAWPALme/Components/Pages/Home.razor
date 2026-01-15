@@ -1,187 +1,72 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Components.Authorization
 @using PAWPALme.Models
 @using PAWPALme.Repositories
-@using PAWPALme.Enums
 @inject IPetRepository PetRepo
-@inject NavigationManager Nav
 
-<PageTitle>Home</PageTitle>
+<PageTitle>PawPal - Find Your Friend</PageTitle>
 
-<div class="container mt-4">
-
-    <div class="d-flex justify-content-end mb-3">
-        <AuthorizeView>
-            <Authorized>
-                <a class="btn btn-outline-secondary" href="/Account/Manage">Account</a>
-            </Authorized>
-            <NotAuthorized>
-                <a class="btn btn-primary" href="/auth">Login / Sign up</a>
-            </NotAuthorized>
-        </AuthorizeView>
-    </div>
-
-    <div class="p-4 p-md-5 mb-4 rounded-3 border shadow-sm bg-white">
-        <div class="row align-items-center g-4">
-            <div class="col-md-7">
-                <h1 class="display-6 fw-bold mb-2">PawPal</h1>
-                <p class="lead mb-3">
-                    Pet adoption made easier — browse trusted listings, learn about each pet,
-                    and book an appointment to meet them.
-                </p>
-
-                <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-success btn-lg" href="/pets">Browse Pets</a>
-                </div>
-
-                <div class="mt-3 text-muted small">
-                    For adopters and shelters — one platform, clearer adoption journeys.
-                </div>
-            </div>
-
-            <div class="col-md-5">
-                <div class="rounded-3 bg-light border d-flex align-items-center justify-content-center"
-                     style="height: 220px;">
-                    <div class="text-center">
-                        <div class="display-4">🐾</div>
-                        <div class="fw-semibold">Find your new best friend</div>
-                        <div class="text-muted small">Browse • Meet • Adopt</div>
-                    </div>
-                </div>
-            </div>
+<div class="px-4 py-5 my-5 text-center bg-light rounded-3 shadow-sm">
+    <h1 class="display-5 fw-bold text-primary">Welcome to PawPal</h1>
+    <div class="col-lg-6 mx-auto">
+        <p class="lead mb-4">Connecting loving homes with pets in need.</p>
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="pets" class="btn btn-primary btn-lg px-4 gap-3">Browse All Pets</a>
+            <a href="shelter/register" class="btn btn-outline-secondary btn-lg px-4">Register a Shelter</a>
         </div>
     </div>
+</div>
 
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <h3 class="mb-0">Featured Pets</h3>
-        <a class="btn btn-outline-primary btn-sm" href="/pets">View all</a>
-    </div>
+<div class="container">
+    <h3 class="mb-4 text-center">Featured Pets</h3>
 
-    @if (!string.IsNullOrWhiteSpace(loadError))
+    @if (pets == null)
     {
-        <div class="alert alert-danger">
-            <strong>Could not load pets.</strong>
-            <div class="small mt-1">@loadError</div>
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status"></div>
         </div>
     }
-    else if (featuredPets is null)
+    else if (!pets.Any())
     {
-        <p><em>Loading...</em></p>
-    }
-    else if (featuredPets.Count == 0)
-    {
-        <div class="alert alert-info">
-            No available pets to show right now.
-        </div>
+        <div class="alert alert-info text-center">No pets are currently available for adoption. Check back soon!</div>
     }
     else
     {
-        <div class="row g-3">
-            @foreach (var pet in featuredPets)
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            @foreach (var pet in pets.Take(3)) // Only show top 3 on home page
             {
-                <div class="col-12 col-sm-6 col-lg-4">
-                    <div class="card h-100 shadow-sm">
-                        @if (!string.IsNullOrWhiteSpace(pet.ImageUrl))
-                        {
-                            <img src="@pet.ImageUrl"
-                                 class="card-img-top"
-                                 style="height: 180px; object-fit: cover;"
-                                 alt="@pet.Name" />
-                        }
-                        else
-                        {
-                            <div class="d-flex align-items-center justify-content-center bg-light border-bottom"
-                                 style="height: 180px;">
-                                <div class="text-center">
-                                    <div class="display-6">🐶🐱</div>
-                                    <div class="text-muted small">No image</div>
-                                </div>
-                            </div>
-                        }
-
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <h5 class="card-title mb-1">@pet.Name</h5>
-                                <span class="badge bg-success">@pet.Status</span>
-                            </div>
-
-                            <div class="text-muted small mb-2">
-                                @pet.Species • @pet.Breed • @pet.Age years old
-                            </div>
-
-                            @if (!string.IsNullOrWhiteSpace(pet.Description))
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div style="height: 250px; overflow: hidden;" class="bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center">
+                            @if (!string.IsNullOrEmpty(pet.ImageUrl))
                             {
-                                <p class="card-text small text-truncate">@pet.Description</p>
+                                <img src="@pet.ImageUrl" style="width: 100%; height: 100%; object-fit: cover;" alt="@pet.Name">
                             }
                             else
                             {
-                                <p class="card-text small text-muted fst-italic">No description provided.</p>
+                                <span class="text-muted"><i class="bi bi-camera"></i> No Image</span>
                             }
                         </div>
-
-                        <div class="card-footer bg-white border-0 d-flex gap-2">
-                            <a class="btn btn-outline-primary w-100"
-                               href="/book-appointment/@pet.Id">
-                                Meet Me
-                            </a>
-                            <a class="btn btn-outline-secondary w-100" href="/pets">
-                                Browse
-                            </a>
+                        <div class="card-body text-center">
+                            <h5 class="card-title fw-bold">@pet.Name</h5>
+                            <p class="card-text text-muted">@pet.Breed • @pet.Age yrs</p>
+                            <a href="pet/@pet.Id" class="btn btn-outline-primary btn-sm">View Details</a>
                         </div>
                     </div>
                 </div>
             }
         </div>
-    }
-
-    <div class="mt-5">
-        <h4>How it works</h4>
-        <div class="row g-3 mt-1">
-            <div class="col-md-4">
-                <div class="p-3 border rounded-3 bg-white shadow-sm h-100">
-                    <div class="fw-semibold">1) Browse</div>
-                    <div class="text-muted small">Search and filter pets that match your lifestyle.</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 border rounded-3 bg-white shadow-sm h-100">
-                    <div class="fw-semibold">2) Book</div>
-                    <div class="text-muted small">Schedule an appointment to meet the pet at the shelter.</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 border rounded-3 bg-white shadow-sm h-100">
-                    <div class="fw-semibold">3) Adopt</div>
-                    <div class="text-muted small">Shelters review requests and guide you through the next steps.</div>
-                </div>
-            </div>
+        <div class="text-center mt-4">
+            <a href="pets" class="btn btn-link">View All Pets &rarr;</a>
         </div>
-    </div>
-
+    }
 </div>
 
 @code {
-    private List<Pet>? featuredPets;
-    private string? loadError;
+    private IEnumerable<Pet>? pets;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            // 1. Fetch All Pets using the Repository
-            var allPets = await PetRepo.GetAllAsync();
-
-            // 2. Filter in memory (using the Enum correctly)
-            featuredPets = allPets
-                .Where(p => p.Status == PetStatus.Available) // ✅ Fixed: Enum comparison
-                .OrderByDescending(p => p.Id)
-                .Take(6)
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            loadError = ex.Message;
-            featuredPets = new List<Pet>();
-        }
+        // Simple fetch of all pets
+        pets = await PetRepo.GetAllAsync();
     }
 }

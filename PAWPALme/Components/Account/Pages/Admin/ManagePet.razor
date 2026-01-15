@@ -1,301 +1,99 @@
-﻿@page "/admin/pets"
-@rendermode InteractiveServer
-
+﻿@page "/shelter/pets"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @using PAWPALme.Models
+@using PAWPALme.Data
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
-
+@attribute [Authorize(Roles = "Shelter")]
 @inject IPetRepository PetRepo
-@inject IShelterRepository ShelterRepo
-
-<PageTitle>Manage Pets</PageTitle>
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0">Manage Pets</h2>
-        <button class="btn btn-primary" @onclick="StartCreate">Create Pet</button>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><a href="shelter/dashboard" class="text-decoration-none text-dark"><i class="bi bi-arrow-left"></i></a> Manage My Pets</h2>
+        <a href="shelter/pets/edit" class="btn btn-success"><i class="bi bi-plus-lg"></i> Add New Pet</a>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(error))
+    @if (myPets == null)
     {
-        <div class="alert alert-danger">@error</div>
+        <div class="spinner-border text-primary"></div>
     }
-
-    @if (mode == ViewMode.List)
+    else if (!myPets.Any())
     {
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="row g-2">
-                    <div class="col-12 col-md-4">
-                        <input class="form-control" placeholder="Search by name..." @bind="searchTerm" />
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <select class="form-select" @bind="species">
-                            <option value="All">All species</option>
-                            <option value="Dog">Dog</option>
-                            <option value="Cat">Cat</option>
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <input class="form-control" placeholder="Breed (optional)" @bind="breed" />
-                    </div>
-                    <div class="col-12 col-md-2 d-grid">
-                        <button class="btn btn-outline-secondary" @onclick="Load">Apply</button>
-                    </div>
-                </div>
-            </div>
+        <div class="alert alert-info">
+            You haven't listed any pets yet. <a href="shelter/pets/edit" class="alert-link">Add your first one!</a>
         </div>
-
-        @if (pets is null)
-        {
-            <p><em>Loading...</em></p>
-        }
-        else if (!pets.Any())
-        {
-            <div class="alert alert-info">No pets found.</div>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-striped align-middle">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Species</th>
-                            <th>Breed</th>
-                            <th>Age</th>
-                            <th>Status</th>
-                            <th>Shelter</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var p in pets)
-                        {
-                            <tr>
-                                <td>@p.Name</td>
-                                <td>@p.Species</td>
-                                <td>@p.Breed</td>
-                                <td>@p.Age</td>
-                                <td>
-                                    <span class="badge bg-secondary">@p.Status</span>
-                                </td>
-                                <td>@(p.Shelter?.Name ?? "Unknown")</td>
-                                <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => StartEdit(p.Id)">Edit</button>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => StartDelete(p.Id)">Delete</button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
     }
     else
     {
-        <div class="card">
-            <div class="card-body">
-                <h5 class="mb-3">@modeTitle</h5>
-
-                @if (mode == ViewMode.Delete)
-                {
-                    <div class="alert alert-warning">
-                        Confirm delete pet: <strong>@current.Name</strong>?
-                    </div>
-                    <button class="btn btn-danger me-2" @onclick="ConfirmDelete">Yes, delete</button>
-                    <button class="btn btn-secondary" @onclick="BackToList">Cancel</button>
-                }
-                else
-                {
-                    <EditForm Model="current" OnValidSubmit="Save">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary class="text-danger" />
-
-                        <div class="mb-3">
-                            <label class="form-label">Name</label>
-                            <InputText class="form-control" @bind-Value="current.Name" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Species</label>
-                            <InputSelect class="form-select" @bind-Value="current.Species">
-                                <option value="Dog">Dog</option>
-                                <option value="Cat">Cat</option>
-                            </InputSelect>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Breed</label>
-                            <InputText class="form-control" @bind-Value="current.Breed" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Age</label>
-                            <InputNumber class="form-control" @bind-Value="current.Age" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Status</label>
-                            <InputSelect class="form-select" @bind-Value="current.Status">
-                                @foreach (var status in Enum.GetValues(typeof(PetStatus)))
+        <div class="table-responsive">
+            <table class="table table-hover align-middle shadow-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>Breed</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var pet in myPets)
+                    {
+                        <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(pet.ImageUrl))
                                 {
-                                    <option value="@status">@status</option>
+                                    <img src="@pet.ImageUrl" class="rounded-circle" width="50" height="50" style="object-fit:cover" />
                                 }
-                            </InputSelect>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Gender</label>
-                            <InputSelect class="form-select" @bind-Value="current.Gender">
-                                @foreach (var g in Enum.GetValues(typeof(PetGender)))
+                                else
                                 {
-                                    <option value="@g">@g</option>
+                                    <div class="bg-secondary rounded-circle" style="width:50px;height:50px;"></div>
                                 }
-                            </InputSelect>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Shelter</label>
-                            <InputSelect class="form-select" @bind-Value="current.ShelterId">
-                                @foreach (var s in shelters)
-                                {
-                                    <option value="@s.Id">@s.Name</option>
-                                }
-                            </InputSelect>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Image URL</label>
-                            <InputText class="form-control" @bind-Value="current.ImageUrl" />
-                        </div>
-
-                        <button class="btn btn-primary me-2" type="submit">Save</button>
-                        <button class="btn btn-secondary" type="button" @onclick="BackToList">Cancel</button>
-                    </EditForm>
-                }
-            </div>
+                            </td>
+                            <td><strong>@pet.Name</strong></td>
+                            <td>@pet.Breed</td>
+                            <td>
+                                <span class="badge @(pet.Status == PetStatus.Available ? "bg-success" : "bg-secondary")">
+                                    @pet.Status
+                                </span>
+                            </td>
+                            <td>
+                                <a href="shelter/pets/edit/@pet.Id" class="btn btn-sm btn-outline-primary me-2">Edit</a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePet(pet.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     }
 </div>
 
 @code {
-    private enum ViewMode { List, Create, Edit, Delete }
-
-    private IEnumerable<Pet>? pets;
-    private IEnumerable<Shelter>? shelters;
-    private string? error;
-
-    private string? searchTerm;
-    private string species = "All";
-    private string? breed;
-    private ViewMode mode = ViewMode.List;
-    private string modeTitle = "";
-    private Pet current = new();
+    private IEnumerable<Pet>? myPets;
+    private ApplicationUser? currentUser;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadShelters();
-        await Load();
-    }
-
-    private async Task LoadShelters()
-    {
-        // For admin, we need all shelters
-        // Assuming a method GetSheltersAsync exists or we search with null
-        // For now, let's use a dummy query if Repository doesn't have GetAll
-        // In reality, you'd add GetAllAsync to IShelterRepository.
-        // I'll assume you add it, or we rely on the ones linked to pets.
-        // Quick fix: Admin should be able to see all.
-        // Let's create a temporary fake list if Repo doesn't support it yet
-        // OR fix IShelterRepository to have GetAllAsync (Recommended).
-
-        // Assuming you updated ShelterRepository as per earlier instructions
-        // If not, use this hack for compiling:
-        shelters = new List<Shelter>();
-    }
-
-    private async Task Load()
-    {
-        error = null;
-        try
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
         {
-            pets = await PetRepo.SearchAsync(searchTerm, species, breed, null);
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
+            currentUser = await UserManager.GetUserAsync(user);
+            if (currentUser?.ShelterId != null)
+            {
+                myPets = await PetRepo.GetPetsByShelterIdAsync(currentUser.ShelterId.Value);
+            }
         }
     }
 
-    private void StartCreate()
+    private async Task DeletePet(int id)
     {
-        mode = ViewMode.Create;
-        modeTitle = "Create Pet";
-        current = new Pet
-        {
-            Species = "Dog",
-            Status = PetStatus.Available,
-            // Fallback ID if no shelters exist yet
-            ShelterId = shelters?.FirstOrDefault()?.Id ?? 1
-        };
-    }
-
-    private async Task StartEdit(int id)
-    {
-        var p = await PetRepo.GetByIdAsync(id);
-        if (p is null) return;
-        mode = ViewMode.Edit;
-        modeTitle = "Edit Pet";
-        current = p;
-    }
-
-    private async Task StartDelete(int id)
-    {
-        var p = await PetRepo.GetByIdAsync(id);
-        if (p is null) return;
-        mode = ViewMode.Delete;
-        modeTitle = "Delete Pet";
-        current = p;
-    }
-
-    private async Task Save()
-    {
-        try
-        {
-            if (mode == ViewMode.Create)
-                await PetRepo.AddAsync(current);
-            else if (mode == ViewMode.Edit)
-                await PetRepo.UpdateAsync(current);
-
-            await Load();
-            BackToList();
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-    }
-
-    private async Task ConfirmDelete()
-    {
-        try
-        {
-            await PetRepo.DeleteAsync(current.Id);
-            await Load();
-            BackToList();
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-    }
-
-    private void BackToList()
-    {
-        mode = ViewMode.List;
-        modeTitle = "";
+        await PetRepo.DeleteAsync(id);
+        if (currentUser?.ShelterId != null)
+            myPets = await PetRepo.GetPetsByShelterIdAsync(currentUser.ShelterId.Value);
     }
 }
-
-

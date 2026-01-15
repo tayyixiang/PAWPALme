@@ -4,37 +4,44 @@ using PAWPALme.Models;
 
 namespace PAWPALme.Data
 {
-    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : IdentityDbContext<ApplicationUser>(options)
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
-        public DbSet<Pet> Pet { get; set; } = default!;
-        public DbSet<Shelter> Shelter { get; set; } = default!;
-        public DbSet<Appointment> Appointment { get; set; } = default!;
-        public DbSet<AdoptionApplication> AdoptionApplication { get; set; } = default!; // Added Stub
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
+
+        public DbSet<Pet> Pet { get; set; }
+        public DbSet<Shelter> Shelter { get; set; }
+        public DbSet<Appointment> Appointment { get; set; }
+        public DbSet<AdoptionApplication> AdoptionApplication { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // Enforce Unique Shelter Owner
-            builder.Entity<Shelter>()
-                .HasIndex(s => s.OwnerUserId)
-                .IsUnique()
-                .HasFilter("[OwnerUserId] IS NOT NULL");
+            // --- FIX FOR MULTIPLE CASCADE PATHS ---
 
-            // Prevent deleting a Shelter if it has Pets
-            builder.Entity<Pet>()
-                .HasOne(p => p.Shelter)
+            // 1. When a Pet is deleted, DO NOT auto-delete Appointments (Prevent Cycle)
+            builder.Entity<Appointment>()
+                .HasOne(a => a.Pet)
                 .WithMany()
-                .HasForeignKey(p => p.ShelterId)
+                .HasForeignKey(a => a.PetId)
+                .OnDelete(DeleteBehavior.Restrict); // or DeleteBehavior.NoAction
+
+            // 2. When a Shelter is deleted, DO NOT auto-delete Appointments (Prevent Cycle)
+            builder.Entity<Appointment>()
+                .HasOne(a => a.Shelter)
+                .WithMany()
+                .HasForeignKey(a => a.ShelterId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Appointment -> Application Relationship
+            // 3. When an Application is deleted, DO NOT auto-delete Appointments
             builder.Entity<Appointment>()
                 .HasOne(a => a.AdoptionApplication)
                 .WithMany()
                 .HasForeignKey(a => a.AdoptionApplicationId)
-                .OnDelete(DeleteBehavior.Cascade); // If application deleted, appointment deleted
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

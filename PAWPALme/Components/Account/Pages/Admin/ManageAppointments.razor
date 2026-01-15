@@ -1,63 +1,55 @@
-﻿@page "/admin/appointments"
+﻿@page "/shelter/appointments"
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Identity
 @using PAWPALme.Models
+@using PAWPALme.Data
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
+@attribute [Authorize(Roles = "Shelter")]
 @inject IAppointmentRepository ApptRepo
-@rendermode InteractiveServer
-
-<PageTitle>Admin - Appointments</PageTitle>
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container mt-4">
-    <h2 class="mb-3">Appointment Requests</h2>
+    <h3>Appointment Requests</h3>
 
-    @if (appointments is null)
+    @if (appointments == null)
     {
         <p>Loading...</p>
     }
     else if (!appointments.Any())
     {
-        <div class="alert alert-info">No appointment requests yet.</div>
+        <div class="alert alert-info">No pending appointments.</div>
     }
     else
     {
-        <table class="table table-hover shadow-sm">
-            <thead class="table-dark">
+        <table class="table align-middle">
+            <thead>
                 <tr>
                     <th>Date</th>
+                    <th>Time</th>
                     <th>Pet</th>
-                    <th>Applicant</th>
-                    <th>Email</th>
                     <th>Status</th>
-                    <th style="width: 240px;">Actions</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var appt in appointments)
                 {
                     <tr>
-                        <td>@appt.AppointmentDate.ToString("yyyy-MM-dd") @appt.AppointmentTime</td>
-                        <td>@(appt.AdoptionApplication?.Pet?.Name ?? "Unknown")</td>
-
-                        <td>@(appt.AdoptionApplication?.ApplicantName ?? appt.AdoptionApplication?.User?.UserName ?? "Unknown")</td>
-                        <td>@(appt.AdoptionApplication?.ApplicantEmail ?? appt.AdoptionApplication?.User?.Email ?? "-")</td>
-
+                        <td>@appt.AppointmentDate.ToShortDateString()</td>
+                        <td>@appt.AppointmentTime.ToString(@"hh\:mm")</td>
+                        <td>@appt.Pet?.Name</td>
                         <td>
+                            @* Fix: Use GetBadgeClass to handle the Enum *@
                             <span class="badge @GetBadgeClass(appt.Status)">@appt.Status</span>
                         </td>
                         <td>
+                            @* Fix: Compare against Enum, not string *@
                             @if (appt.Status == AppointmentStatus.Pending)
                             {
-                                <button class="btn btn-sm btn-success me-1"
-                                        @onclick="@(() => UpdateStatus(appt, AppointmentStatus.Confirmed))">
-                                    Approve
-                                </button>
-
-                                <button class="btn btn-sm btn-danger me-1"
-                                        @onclick="@(() => UpdateStatus(appt, AppointmentStatus.Cancelled))">
-                                    Reject
-                                </button>
+                                <button class="btn btn-sm btn-success me-2" @onclick="() => UpdateStatus(appt, AppointmentStatus.Confirmed)">Approve</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => UpdateStatus(appt, AppointmentStatus.Cancelled)">Deny</button>
                             }
                         </td>
                     </tr>
@@ -69,27 +61,32 @@
 
 @code {
     private IEnumerable<Appointment>? appointments;
+    private ApplicationUser? currentUser;
 
     protected override async Task OnInitializedAsync()
     {
-        await Reload();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUser = await UserManager.GetUserAsync(authState.User);
+
+        if (currentUser?.ShelterId != null)
+        {
+            appointments = await ApptRepo.GetByShelterIdAsync(currentUser.ShelterId.Value);
+        }
     }
 
-    private async Task Reload()
-    {
-        // NOTE: As Admin, you might want ALL appointments.
-        // But GetByShelterIdAsync is what we have in the Interface.
-        // For now, pass a known Shelter ID or update the Interface to support GetAllAsync.
-        // Assuming we look at Shelter 1 for demo purposes:
-        appointments = await ApptRepo.GetByShelterIdAsync(1);
-    }
-
+    // Fix: Parameter must be Enum, not int/string
     private async Task UpdateStatus(Appointment appt, AppointmentStatus status)
     {
-        await ApptRepo.UpdateStatusAsync(appt.Id, status);
-        await Reload();
+        appt.Status = status;
+        await ApptRepo.UpdateAsync(appt);
+        // Refresh list
+        if (currentUser?.ShelterId != null)
+        {
+            appointments = await ApptRepo.GetByShelterIdAsync(currentUser.ShelterId.Value);
+        }
     }
 
+    // Fix: Switch on Enum
     private string GetBadgeClass(AppointmentStatus status) => status switch
     {
         AppointmentStatus.Confirmed => "bg-success",
@@ -98,4 +95,3 @@
         _ => "bg-secondary"
     };
 }
-

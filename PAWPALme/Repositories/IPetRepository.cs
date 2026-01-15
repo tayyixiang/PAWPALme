@@ -1,17 +1,18 @@
 ﻿using PAWPALme.Models;
-using PAWPALme.Enums;
 
 namespace PAWPALme.Repositories
 {
     public interface IPetRepository
     {
-        Task<IEnumerable<Pet>> GetAllAsync();
-        Task<IEnumerable<Pet>> SearchAsync(string? searchTerm, string? species, string? breed, int? minAge);
         Task<Pet?> GetByIdAsync(int id);
-        Task<IEnumerable<Pet>> GetPetsByShelterAsync(int shelterId);
+        Task<IEnumerable<Pet>> GetAllAsync();
+        Task<IEnumerable<Pet>> GetPetsByShelterIdAsync(int shelterId);
         Task AddAsync(Pet pet);
         Task UpdateAsync(Pet pet);
         Task DeleteAsync(int id);
+
+        // Required for Search/Filter
+        Task<IEnumerable<Pet>> SearchAsync(string? searchTerm, string? species, string? breed, int? age);
         Task<IEnumerable<string>> GetBreedsAsync();
     }
 }

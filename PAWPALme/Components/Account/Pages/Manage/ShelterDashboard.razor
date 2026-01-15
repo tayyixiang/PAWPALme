@@ -1,0 +1,56 @@
+﻿@page "/shelter/dashboard"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using PAWPALme.Data
+@attribute [Authorize(Roles = "Shelter")]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Shelter Dashboard</PageTitle>
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="display-6">Shelter Dashboard</h1>
+            <p class="text-muted">Welcome back, <strong>@username</strong></p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100 border-primary">
+                <div class="card-body text-center">
+                    <h1 class="display-4 text-primary"><i class="bi bi-github"></i></h1> @* Placeholder icon *@
+                    <h3 class="card-title">Manage Pets</h3>
+                    <p class="card-text">Add new pets, update profiles, or remove adopted pets.</p>
+                    <a href="shelter/pets" class="btn btn-primary btn-lg w-100">Go to Pets</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100 border-success">
+                <div class="card-body text-center">
+                    <h1 class="display-4 text-success"><i class="bi bi-calendar-check"></i></h1>
+                    <h3 class="card-title">Appointments</h3>
+                    <p class="card-text">Review and approve adoption requests from users.</p>
+                    <a href="shelter/appointments" class="btn btn-success btn-lg w-100">View Requests</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string username = "Partner";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            username = user.Identity.Name ?? "Partner";
+        }
+    }
+}

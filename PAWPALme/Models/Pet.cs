@@ -15,14 +15,18 @@ namespace PAWPALme.Models
 
         [Required]
         [StringLength(50)]
-        public string Species { get; set; } = string.Empty; // e.g., "Dog", "Cat"
+        public string Species { get; set; } = string.Empty; // "Dog", "Cat"
 
         [Required]
         [StringLength(80)]
         public string Breed { get; set; } = string.Empty;
 
-        [Range(0, 30, ErrorMessage = "Age must be between 0 and 30")]
+        [Range(0, 30)]
         public int Age { get; set; }
+
+        // NEW: Add Size property
+        [StringLength(20)]
+        public string Size { get; set; } = "Medium";
 
         [Required]
         public PetGender Gender { get; set; }
@@ -30,15 +34,14 @@ namespace PAWPALme.Models
         [Required]
         public PetStatus Status { get; set; } = PetStatus.Available;
 
-        [StringLength(500)]
+        [StringLength(1000)]
         public string Description { get; set; } = string.Empty;
 
-        [StringLength(400)]
+        [StringLength(500)]
         public string? ImageUrl { get; set; }
 
         // --- RELATIONS ---
         [Required]
-        [Display(Name = "Shelter")]
         public int ShelterId { get; set; }
 
         [ForeignKey("ShelterId")]

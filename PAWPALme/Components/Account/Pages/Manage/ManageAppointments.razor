@@ -1,0 +1,102 @@
+﻿@page "/shelter/appointments"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using PAWPALme.Models
+@using PAWPALme.Data
+@using PAWPALme.Repositories
+@using PAWPALme.Enums
+@attribute [Authorize(Roles = "Shelter")]
+@inject IAppointmentRepository ApptRepo
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="container mt-4">
+    <h3>Appointment Requests</h3>
+
+    @if (appointments == null)
+    {
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    }
+    else if (!appointments.Any())
+    {
+        <div class="alert alert-info">No pending appointments.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Pet</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var appt in appointments)
+                    {
+                        <tr>
+                            <td>@appt.AppointmentDate.ToShortDateString()</td>
+                            <td>@appt.AppointmentTime.ToString(@"hh\:mm")</td>
+                            <td>@appt.Pet?.Name</td>
+                            <td>
+                                @* FIX 1: Pass the Enum directly to the helper method *@
+                                <span class="badge @GetBadgeClass(appt.Status)">@appt.Status</span>
+                            </td>
+                            <td>
+                                @* FIX 2: Compare using the Enum type, NOT a string *@
+                                @if (appt.Status == AppointmentStatus.Pending)
+                                {
+                                    <button class="btn btn-sm btn-success me-2" @onclick="() => UpdateStatus(appt, AppointmentStatus.Confirmed)">Approve</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => UpdateStatus(appt, AppointmentStatus.Cancelled)">Deny</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<Appointment>? appointments;
+    private ApplicationUser? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUser = await UserManager.GetUserAsync(authState.User);
+
+        if (currentUser?.ShelterId != null)
+        {
+            appointments = await ApptRepo.GetByShelterIdAsync(currentUser.ShelterId.Value);
+        }
+    }
+
+    // FIX 3: Signature accepts AppointmentStatus Enum
+    private async Task UpdateStatus(Appointment appt, AppointmentStatus status)
+    {
+        appt.Status = status;
+        await ApptRepo.UpdateAsync(appt);
+
+        // Refresh the list after update
+        if (currentUser?.ShelterId != null)
+        {
+            appointments = await ApptRepo.GetByShelterIdAsync(currentUser.ShelterId.Value);
+        }
+    }
+
+    // FIX 4: Helper method switches on Enum
+    private string GetBadgeClass(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Confirmed => "bg-success",
+        AppointmentStatus.Cancelled => "bg-danger",
+        AppointmentStatus.Pending => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+}
