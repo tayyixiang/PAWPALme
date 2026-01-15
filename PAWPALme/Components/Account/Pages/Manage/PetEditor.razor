@@ -18,7 +18,8 @@
             <h3 class="mb-0">@(Id.HasValue ? "Edit Pet Profile" : "Add New Pet")</h3>
         </div>
         <div class="card-body">
-            <EditForm Model="PetModel" OnValidSubmit="SavePet">
+            @* FIX: Added FormName="pet-editor" to resolve the POST error *@
+            <EditForm Model="PetModel" OnValidSubmit="SavePet" FormName="pet-editor">
                 <DataAnnotationsValidator />
                 <ValidationSummary class="text-danger" />
 
@@ -84,7 +85,11 @@
 
 @code {
     [Parameter] public int? Id { get; set; }
-    private Pet PetModel { get; set; } = new() { Species = "Dog" }; // Default to Dog
+
+    // FIX: Added [SupplyParameterFromForm] to handle binding correctly
+    [SupplyParameterFromForm]
+    private Pet PetModel { get; set; } = new() { Species = "Dog" };
+
     private ApplicationUser? currentUser;
 
     protected override async Task OnInitializedAsync()
@@ -92,7 +97,9 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         currentUser = await UserManager.GetUserAsync(authState.User);
 
-        if (Id.HasValue)
+        // Load data only if we have an ID AND we haven't already bound a form submission
+        // (This check prevents overwriting user input if validation fails)
+        if (Id.HasValue && PetModel.Id == 0)
         {
             var existing = await PetRepo.GetByIdAsync(Id.Value);
             // Ensure ownership
@@ -107,9 +114,10 @@
     {
         if (currentUser?.ShelterId == null) return;
 
+        // Ensure the shelter ID is set (security)
         PetModel.ShelterId = currentUser.ShelterId.Value;
 
-        if (Id.HasValue)
+        if (Id.HasValue && PetModel.Id > 0)
         {
             await PetRepo.UpdateAsync(PetModel);
         }
