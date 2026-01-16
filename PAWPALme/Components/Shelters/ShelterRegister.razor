@@ -1,73 +1,71 @@
 ﻿@page "/shelter/register"
-
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
 @using PAWPALme.Data
 @using PAWPALme.Models
 @using PAWPALme.Repositories
-
+@using PAWPALme.Components.Account
 @inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject IShelterRepository ShelterRepo
 @inject NavigationManager Nav
-@inject ILogger<ShelterRegister> Logger
-
-<PageTitle>Register Shelter</PageTitle>
+@inject IdentityUserAccessor UserAccessor
 
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow border-0">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0">Shelter Partner Registration</h3>
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">Shelter Registration</h4>
                 </div>
-                <div class="card-body p-4">
-                    <EditForm Model="Input" OnValidSubmit="RegisterUserAndShelter" FormName="shelter-reg">
+                <div class="card-body">
+                    <p class="text-muted mb-4">Create an account to manage your shelter and list pets.</p>
+
+                    <EditForm Model="Input" OnValidSubmit="RegisterShelter" FormName="shelter-register">
                         <DataAnnotationsValidator />
                         <ValidationSummary class="text-danger mb-3" />
 
-                        <div class="row g-4">
+                        <div class="row">
                             <div class="col-md-6">
-                                <h5 class="text-secondary border-bottom pb-2">Login Details</h5>
+                                <h5 class="border-bottom pb-2">1. Account Login</h5>
                                 <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    <InputText @bind-Value="Input.Email" class="form-control" placeholder="admin@shelter.com" />
-                                    <ValidationMessage For="() => Input.Email" class="text-danger" />
+                                    <label class="form-label">Email Address</label>
+                                    <InputText @bind-Value="Input.Email" class="form-control" placeholder="name@example.com" />
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Password</label>
                                     <InputText @bind-Value="Input.Password" type="password" class="form-control" />
-                                    <ValidationMessage For="() => Input.Password" class="text-danger" />
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Confirm Password</label>
                                     <InputText @bind-Value="Input.ConfirmPassword" type="password" class="form-control" />
-                                    <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
                                 </div>
                             </div>
 
                             <div class="col-md-6">
-                                <h5 class="text-secondary border-bottom pb-2">Shelter Profile</h5>
+                                <h5 class="border-bottom pb-2">2. Shelter Details</h5>
                                 <div class="mb-3">
                                     <label class="form-label">Shelter Name</label>
-                                    <InputText @bind-Value="Input.ShelterName" class="form-control" />
-                                    <ValidationMessage For="() => Input.ShelterName" class="text-danger" />
+                                    <InputText @bind-Value="Input.ShelterName" class="form-control" placeholder="e.g. Happy Paws" />
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Address</label>
-                                    <InputText @bind-Value="Input.Address" class="form-control" />
-                                    <ValidationMessage For="() => Input.Address" class="text-danger" />
+                                    <InputText @bind-Value="Input.Address" class="form-control" placeholder="Full Address" />
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Phone</label>
-                                    <InputText @bind-Value="Input.PhoneNumber" class="form-control" />
-                                    <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+                                    <label class="form-label">Phone Number</label>
+                                    <InputText @bind-Value="Input.Phone" class="form-control" placeholder="Office Phone" />
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="my-4" />
-                        <button type="submit" class="btn btn-primary btn-lg w-100">Create Shelter Account</button>
+                        <hr />
+
+                        <div class="d-flex justify-content-end">
+                            <a href="/" class="btn btn-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-4">Register Shelter</button>
+                        </div>
                     </EditForm>
                 </div>
             </div>
@@ -77,65 +75,71 @@
 
 @code {
     [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = new();
+    private RegisterInputModel Input { get; set; } = new();
 
-    private async Task RegisterUserAndShelter()
+    public async Task RegisterShelter()
     {
-        // 1. Create Shelter (Your DB)
-        var newShelter = new Shelter
+        // 1. Ensure "Shelter" Role Exists
+        if (!await RoleManager.RoleExistsAsync("Shelter"))
         {
-            Name = Input.ShelterName,
-            Address = Input.Address,
-            Phone = Input.PhoneNumber
-        };
-        await ShelterRepo.AddAsync(newShelter);
+            await RoleManager.CreateAsync(new IdentityRole("Shelter"));
+        }
 
-        // 2. Create User (Identity DB)
-        var user = new ApplicationUser
-        {
-            UserName = Input.Email,
-            Email = Input.Email,
-            FullName = Input.ShelterName,
-            ShelterId = newShelter.Id, // Link User -> Shelter
-            EmailConfirmed = true // SKIP EMAIL CONFIRMATION FOR DEV
-        };
-
+        // 2. Create the User Account
+        var user = new ApplicationUser { UserName = Input.Email, Email = Input.Email };
         var result = await UserManager.CreateAsync(user, Input.Password);
 
         if (result.Succeeded)
         {
-            // 3. Link Shelter -> User
-            newShelter.OwnerUserId = user.Id;
-            await ShelterRepo.UpdateAsync(newShelter);
-
-            // 4. Assign Role
-            if (!await RoleManager.RoleExistsAsync("Shelter"))
-            {
-                await RoleManager.CreateAsync(new IdentityRole("Shelter"));
-            }
+            // 3. Assign Role
             await UserManager.AddToRoleAsync(user, "Shelter");
 
-            // 5. Success Redirect
-            Nav.NavigateTo("/shelter/success");
+            // 4. Create Shelter Entity
+            var shelter = new Shelter
+            {
+                Name = Input.ShelterName,
+                Address = Input.Address,
+                Phone = Input.Phone,
+                OwnerUserId = user.Id
+            };
+            await ShelterRepo.AddAsync(shelter);
+
+            // 5. Link User to Shelter
+            user.ShelterId = shelter.Id;
+            await UserManager.UpdateAsync(user);
+
+            // 6. Auto Sign-In
+            await SignInManager.SignInAsync(user, isPersistent: false);
+            Nav.NavigateTo("/shelter/dashboard");
         }
         else
         {
+            // Handle Identity Errors (Password too weak, etc.)
             foreach (var error in result.Errors)
             {
-                Logger.LogError(error.Description);
+                Console.WriteLine($"Error: {error.Description}");
             }
         }
     }
 
-    public class InputModel
+    public class RegisterInputModel
     {
-        [Required][EmailAddress] public string Email { get; set; } = "";
-        [Required][DataType(DataType.Password)] public string Password { get; set; } = "";
-        [Required][Compare("Password")] public string ConfirmPassword { get; set; } = "";
-        [Required] public string ShelterName { get; set; } = "";
-        [Required] public string Address { get; set; } = "";
-        [Required][Phone] public string PhoneNumber { get; set; } = "";
+        [Required, EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required, StringLength(100, MinimumLength = 6)]
+        public string Password { get; set; } = "";
+
+        [Compare("Password", ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+
+        [Required]
+        public string ShelterName { get; set; } = "";
+
+        [Required]
+        public string Address { get; set; } = "";
+
+        [Required]
+        public string Phone { get; set; } = "";
     }
 }
-
-

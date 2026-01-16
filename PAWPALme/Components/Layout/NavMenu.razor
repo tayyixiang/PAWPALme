@@ -55,21 +55,22 @@
             </Authorized>
         </AuthorizeView>
 
+        <div class="nav-item px-3">
+            <hr class="text-white" />
+        </div>
+
         <AuthorizeView>
             <Authorized>
-                @* Adopters need to see their appointments *@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="my-appointments">
                         <span class="bi bi-calendar-check-nav-menu" aria-hidden="true"></span> My Appointments
                     </NavLink>
                 </div>
-
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
                         <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
                     </NavLink>
                 </div>
-
                 <div class="nav-item px-3">
                     <form action="Account/Logout" method="post">
                         <AntiforgeryToken />
@@ -81,14 +82,23 @@
                 </div>
             </Authorized>
             <NotAuthorized>
+                @* UPDATED: Changed text to just "Register" *@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Register">
                         <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
                     </NavLink>
                 </div>
+
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Login">
                         <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
+                    </NavLink>
+                </div>
+
+                @* SHELTER Registration Link *@
+                <div class="nav-item px-3 mt-2">
+                    <NavLink class="nav-link border border-secondary rounded" href="shelter/register">
+                        <span class="bi bi-building-nav-menu" aria-hidden="true"></span> Partner with us
                     </NavLink>
                 </div>
             </NotAuthorized>
@@ -117,7 +127,6 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-
 
 
 

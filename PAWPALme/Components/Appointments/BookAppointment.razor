@@ -1,61 +1,68 @@
 ﻿@page "/book-appointment/{PetId:int}"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using PAWPALme.Data
 @using PAWPALme.Models
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
-@using System.ComponentModel.DataAnnotations
-@using Microsoft.AspNetCore.Identity
-@inject IAppointmentRepository ApptRepo
+@attribute [Authorize]
 @inject IPetRepository PetRepo
-@inject NavigationManager Nav
-@inject AuthenticationStateProvider AuthStateProvider
+@inject IAppointmentRepository ApptRepo
 @inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
 
-<PageTitle>Book a Visit</PageTitle>
-
-<div class="container mt-4" style="max-width: 600px;">
-    <div class="card shadow border-success">
-        <div class="card-header bg-success text-white">
-            <h4 class="mb-0">Meet @petName</h4>
-        </div>
-        <div class="card-body">
-            <p class="text-muted">Schedule a time to visit this pet at the shelter.</p>
-
-            @* FIX: Added FormName and bound to a single InputModel *@
-            <EditForm Model="Input" OnValidSubmit="SaveAppointment" FormName="book-appointment">
-                <DataAnnotationsValidator />
-                <ValidationSummary class="text-danger" />
-
-                <div class="mb-3">
-                    <label class="form-label">Preferred Date</label>
-                    <InputDate class="form-control" @bind-Value="Input.Date" />
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Adoption Application</h4>
                 </div>
+                <div class="card-body">
+                    @if (targetPet == null)
+                    {
+                        <div class="text-center"><div class="spinner-border text-primary"></div></div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light border border-primary d-flex align-items-center mb-4">
+                            <i class="bi bi-heart-fill text-danger fs-3 me-3"></i>
+                            <div>
+                                <h5 class="mb-0">You are applying for <strong>@targetPet.Name</strong></h5>
+                                <small class="text-muted">Breed: @targetPet.Breed • Shelter: @(targetPet.Shelter?.Name ?? "Unknown Shelter")</small>
+                            </div>
+                        </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Preferred Time</label>
-                    <input type="time" class="form-control" @bind="Input.Time" />
-                </div>
+                        <EditForm Model="Input" OnValidSubmit="SubmitApplication" FormName="book-appointment">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" />
 
-                <div class="row g-2 mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Your Name</label>
-                        <InputText class="form-control" @bind-Value="Input.ApplicantName" placeholder="Required" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Email</label>
-                        <InputText class="form-control" @bind-Value="Input.ApplicantEmail" placeholder="Required" />
-                    </div>
-                </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Preferred Date</label>
+                                    <InputDate @bind-Value="Input.Date" class="form-control" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Preferred Time</label>
+                                    <InputDate Type="InputDateType.Time" @bind-Value="Input.Time" class="form-control" />
+                                </div>
+                            </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Notes</label>
-                    <InputTextArea class="form-control" @bind-Value="Input.Notes" rows="3" />
-                </div>
+                            <div class="mb-3">
+                                <label class="form-label">Why do you want to adopt @targetPet.Name?</label>
+                                <InputTextArea @bind-Value="Input.Notes" class="form-control" rows="4" placeholder="Tell us about your home environment..." />
+                            </div>
 
-                <div class="d-flex justify-content-between mt-4">
-                    <a href="pets" class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-success">Confirm Booking</button>
+                            <div class="d-flex justify-content-between mt-4">
+                                <a href="shelter/@targetPet.ShelterId" class="btn btn-outline-secondary">Cancel</a>
+                                <button type="submit" class="btn btn-primary btn-lg px-5">Submit Request</button>
+                            </div>
+                        </EditForm>
+                    }
                 </div>
-            </EditForm>
+            </div>
         </div>
     </div>
 </div>
@@ -64,63 +71,42 @@
     [Parameter] public int PetId { get; set; }
 
     [SupplyParameterFromForm]
-    private BookingInputModel Input { get; set; } = new();
+    private BookingModel Input { get; set; } = new();
 
-    private string petName = "your new friend";
-    private int shelterId;
+    private Pet? targetPet;
+    private ApplicationUser? user;
 
     protected override async Task OnInitializedAsync()
     {
-        // Load Pet Details (Visuals only)
-        var pet = await PetRepo.GetByIdAsync(PetId);
-        if (pet != null)
-        {
-            petName = pet.Name;
-            shelterId = pet.ShelterId;
-        }
-        else
-        {
-            // Handle invalid pet ID
-            Nav.NavigateTo("pets");
-            return;
-        }
+        // 1. Fetch Pet Details
+        targetPet = await PetRepo.GetByIdAsync(PetId);
 
-        // Only pre-fill if this is a fresh GET request (not a POST back)
-        if (Input.Date == default)
-        {
-            Input.Date = DateTime.Now.AddDays(1);
-            Input.Time = new DateTime(1, 1, 1, 10, 0, 0); // Default 10:00 AM
-
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-            if (user.Identity?.IsAuthenticated ?? false)
-            {
-                Input.ApplicantName = user.FindFirst("FullName")?.Value ?? user.Identity.Name ?? "";
-                Input.ApplicantEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
-            }
-        }
+        // 2. Default date to tomorrow
+        if (Input.Date == default) Input.Date = DateTime.Today.AddDays(1);
+        if (Input.Time == default) Input.Time = DateTime.Now;
     }
-    // ... inside the @code block ...
 
-    private async Task SaveAppointment()
+    private async Task SubmitApplication()
     {
-        // 1. Get Current User ID
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(authState.User);
-        var userId = user?.Id;
+        if (targetPet == null) return;
 
-        // 2. Create the Application Stub
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        user = await UserManager.GetUserAsync(authState.User);
+
+        if (user == null) return;
+
+        // 1. Create the Application Stub
         var appStub = new AdoptionApplication
         {
-            ApplicantName = Input.ApplicantName,
-            ApplicantEmail = Input.ApplicantEmail,
-            UserId = userId,
+            ApplicantName = user.UserName ?? "Unknown",
+            ApplicantEmail = user.Email ?? "",
+            UserId = user.Id,
             PetId = PetId,
             ApplicationDate = DateTime.Now,
             Status = ApplicationStatus.Pending
         };
 
-        // 3. Create the Appointment AND LINK THE APPLICATION
+        // 2. Create Appointment
         var appointment = new Appointment
         {
             AppointmentDate = Input.Date,
@@ -128,10 +114,11 @@
             Notes = Input.Notes,
             Status = AppointmentStatus.Pending,
             PetId = PetId,
-            ShelterId = shelterId,
-            AdopterUserId = userId,
 
-            // FIX: This links the two objects so they save together!
+            // FIX: Removed '?? 0' because ShelterId is already a required int
+            ShelterId = targetPet.ShelterId,
+
+            AdopterUserId = user.Id,
             AdoptionApplication = appStub
         };
 
@@ -139,8 +126,7 @@
         Nav.NavigateTo("my-appointments");
     }
 
-    // DTO for the Form
-    public class BookingInputModel
+    public class BookingModel
     {
         [Required]
         public DateTime Date { get; set; }
@@ -148,13 +134,7 @@
         [Required]
         public DateTime Time { get; set; }
 
-        [Required]
-        public string ApplicantName { get; set; } = "";
-
-        [Required]
-        [EmailAddress]
-        public string ApplicantEmail { get; set; } = "";
-
-        public string? Notes { get; set; }
+        [Required(ErrorMessage = "Please tell the shelter a little about yourself.")]
+        public string Notes { get; set; } = "";
     }
 }

@@ -11,6 +11,8 @@
         <p class="lead mb-4">Connecting loving homes with pets in need.</p>
         <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
             <a href="pets" class="btn btn-primary btn-lg px-4 gap-3">Browse All Pets</a>
+
+            @* This link now matches the sidebar perfectly *@
             <a href="shelter/register" class="btn btn-outline-secondary btn-lg px-4">Register a Shelter</a>
         </div>
     </div>
@@ -32,7 +34,7 @@
     else
     {
         <div class="row row-cols-1 row-cols-md-3 g-4">
-            @foreach (var pet in pets.Take(3)) // Only show top 3 on home page
+            @foreach (var pet in pets.Take(3))
             {
                 <div class="col">
                     <div class="card h-100 shadow-sm border-0">
@@ -66,7 +68,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Simple fetch of all pets
         pets = await PetRepo.GetAllAsync();
     }
 }

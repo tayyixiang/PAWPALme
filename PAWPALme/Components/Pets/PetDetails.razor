@@ -1,57 +1,80 @@
 ﻿@page "/pet/{Id:int}"
 @using PAWPALme.Models
-@using PAWPALme.Data
 @using PAWPALme.Repositories
-@using PAWPALme.Enums
-@using Microsoft.AspNetCore.Identity
 @inject IPetRepository PetRepo
-@inject IAppointmentRepository ApptRepo
-@inject AuthenticationStateProvider AuthStateProvider
-@inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager Nav
+
+<PageTitle>@(pet?.Name ?? "Pet Details")</PageTitle>
 
 <div class="container mt-5">
     @if (pet == null)
     {
-        <p>Pet not found.</p>
+        <div class="alert alert-warning">Pet not found.</div>
     }
     else
     {
         <div class="row">
-            <div class="col-md-6">
-                <img src="@(string.IsNullOrEmpty(pet.ImageUrl) ? "https://placehold.co/600x400?text=Pet" : pet.ImageUrl)"
-                     class="img-fluid rounded shadow" alt="@pet.Name">
+            @* --- LEFT COLUMN: IMAGE --- *@
+            <div class="col-md-6 mb-4">
+                <div class="bg-light rounded d-flex align-items-center justify-content-center overflow-hidden shadow-sm" style="height: 400px;">
+                    @if (!string.IsNullOrEmpty(pet.ImageUrl))
+                    {
+                        <img src="@pet.ImageUrl" class="w-100 h-100" style="object-fit: cover;" alt="@pet.Name">
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted">
+                            <i class="bi bi-camera fs-1"></i>
+                            <p>No Image Available</p>
+                        </div>
+                    }
+                </div>
             </div>
+
+            @* --- RIGHT COLUMN: INFO --- *@
             <div class="col-md-6">
-                <h1>@pet.Name</h1>
-                <h4 class="text-muted">@pet.Breed • @pet.Age years old • @pet.Size</h4>
+                <h1 class="display-4 fw-bold text-primary">@pet.Name</h1>
+                <p class="lead text-muted">
+                    @pet.Breed • @pet.Age years old • @pet.Gender • @pet.Size
+                </p>
                 <hr />
-                <p class="lead">@pet.Description</p>
 
-                <div class="card mt-4 bg-light">
+                <h5 class="mt-4">About @pet.Name</h5>
+                <p class="fs-5">@(string.IsNullOrEmpty(pet.Description) ? "No description provided." : pet.Description)</p>
+
+                @* --- SHELTER INFO BOX --- *@
+                <div class="card mt-5 bg-light border-0">
                     <div class="card-body">
-                        <h5>Interested in @pet.Name?</h5>
-                        <p>Shelter: <strong>@pet.Shelter?.Name</strong></p>
-
-                        <AuthorizeView>
-                            <Authorized>
-                                <button class="btn btn-primary btn-lg" @onclick="BookAppointment">
-                                    Request Appointment
-                                </button>
-                            </Authorized>
-                            <NotAuthorized>
-                                <a href="Account/Login?ReturnUrl=/pet/@Id" class="btn btn-secondary">Log in to Adopt</a>
-                            </NotAuthorized>
-                        </AuthorizeView>
-
-                        @if (bookingSuccess)
-                        {
-                            <div class="alert alert-success mt-3">
-                                Request sent! View status in <a href="my-appointments">My Appointments</a>.
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold">Currently at</small>
+                                <h5 class="mb-0">
+                                    <i class="bi bi-house-heart-fill text-danger"></i>
+                                    @* Link back to shelter details *@
+                                    <a href="shelter/@pet.ShelterId" class="text-decoration-none text-dark">
+                                        @(pet.Shelter?.Name ?? "Unknown Shelter")
+                                    </a>
+                                </h5>
                             </div>
-                        }
+
+                            @* --- THE FIXED BUTTON --- *@
+                            <AuthorizeView>
+                                <Authorized>
+                                    @* FIX: Navigates to the Application Page *@
+                                    <a href="book-appointment/@pet.Id" class="btn btn-primary btn-lg">
+                                        Request to Adopt
+                                    </a>
+                                </Authorized>
+                                <NotAuthorized>
+                                    <a href="Account/Login?ReturnUrl=/book-appointment/@pet.Id" class="btn btn-secondary btn-lg">
+                                        Log in to Adopt
+                                    </a>
+                                </NotAuthorized>
+                            </AuthorizeView>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
     }
@@ -60,33 +83,9 @@
 @code {
     [Parameter] public int Id { get; set; }
     private Pet? pet;
-    private bool bookingSuccess = false;
 
     protected override async Task OnInitializedAsync()
     {
         pet = await PetRepo.GetByIdAsync(Id);
-    }
-
-    private async Task BookAppointment()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(authState.User);
-
-        if (user != null && pet != null)
-        {
-            var appt = new Appointment
-            {
-                AppointmentDate = DateTime.Now.AddDays(1).Date, // Default tomorrow
-                AppointmentTime = new TimeSpan(10, 0, 0),       // Default 10:00 AM
-                PetId = pet.Id,
-                ShelterId = pet.ShelterId,
-                AdopterUserId = user.Id,
-                Status = AppointmentStatus.Pending,
-                Notes = "Interest in " + pet.Name
-            };
-
-            await ApptRepo.AddAsync(appt);
-            bookingSuccess = true;
-        }
     }
 }

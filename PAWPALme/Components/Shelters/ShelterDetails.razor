@@ -7,17 +7,15 @@
 
 <PageTitle>@(shelter?.Name ?? "Shelter Details")</PageTitle>
 
-@* --- CSS FOR HOVER EFFECTS --- *@
 <style>
-    /* Reuse the same link style */
     .address-link {
-        color: #212529; /* Dark text (Default) */
+        color: #212529;
         text-decoration: none;
         transition: all 0.2s ease;
     }
 
         .address-link:hover {
-            color: #0d6efd; /* Bootstrap Primary Blue */
+            color: #0d6efd;
             text-decoration: underline;
             cursor: pointer;
         }
@@ -46,13 +44,8 @@
                         <h1 class="display-4 fw-bold text-primary">@shelter.Name</h1>
                         <p class="lead">
                             <i class="bi bi-geo-alt-fill text-danger me-2"></i>
-                            @* UPDATED: Interactive Address Link *@
                             <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(shelter.Address)}")"
-                               target="_blank"
-                               class="address-link"
-                               title="View on Google Maps">
-                                @shelter.Address
-                            </a>
+                               target="_blank" class="address-link">@shelter.Address</a>
                         </p>
                         <p class="fs-5"><i class="bi bi-telephone-fill text-success me-2"></i> @shelter.Phone</p>
                         <hr />
@@ -66,8 +59,7 @@
                         else
                         {
                             <div class="p-5 bg-light rounded text-muted">
-                                <i class="bi bi-building fs-1"></i>
-                                <p>No Logo Available</p>
+                                <i class="bi bi-building fs-1"></i><p>No Logo Available</p>
                             </div>
                         }
                     </div>
@@ -76,54 +68,46 @@
         </div>
 
         @* --- PETS LIST --- *@
-        <div class="d-flex align-items-center justify-content-between mb-4">
-            <h3 class="fw-bold">Pets at @shelter.Name</h3>
-            <span class="badge bg-secondary rounded-pill">@(pets?.Count() ?? 0) Pets Available</span>
-        </div>
+        <h3 class="fw-bold mb-4">Pets Available for Adoption</h3>
 
         @if (pets == null)
         {
-            <div class="text-center py-5">
-                <div class="spinner-border text-secondary" role="status"></div>
-            </div>
+            <div class="spinner-border text-secondary"></div>
         }
         else if (!pets.Any())
         {
-            <div class="alert alert-secondary text-center py-4">
-                <i class="bi bi-emoji-smile fs-3 d-block mb-2"></i>
-                This shelter has no pets available for adoption right now.
-            </div>
+            <div class="alert alert-secondary">No pets available right now.</div>
         }
         else
         {
             <div class="row g-4">
                 @foreach (var pet in pets)
                 {
-                    <div class="col-md-6 col-lg-3">
+                    <div class="col-md-3">
                         <div class="card h-100 shadow-sm border-0 hover-card">
-                            @* Pet Image *@
-                            <div style="height: 250px; overflow: hidden;" class="bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center position-relative">
+                            <div style="height: 200px; overflow: hidden;" class="bg-light d-flex align-items-center justify-content-center position-relative">
                                 @if (!string.IsNullOrEmpty(pet.ImageUrl))
                                 {
                                     <img src="@pet.ImageUrl" style="width: 100%; height: 100%; object-fit: cover;" />
                                 }
                                 else
                                 {
-                                    <div class="text-center text-muted">
-                                        <i class="bi bi-camera fs-1"></i><br>No Image
-                                    </div>
+                                    <span class="text-muted"><i class="bi bi-camera"></i> No Image</span>
                                 }
-
-                                @* Gender Badge *@
-                                <span class="position-absolute top-0 end-0 m-2 badge @(pet.Gender == PAWPALme.Enums.PetGender.Male ? "bg-info text-dark" : "bg-danger")">
-                                    @pet.Gender
-                                </span>
+                                <span class="position-absolute top-0 end-0 m-2 badge bg-dark opacity-75">@pet.Breed</span>
                             </div>
 
                             <div class="card-body text-center">
                                 <h5 class="card-title fw-bold">@pet.Name</h5>
-                                <p class="card-text text-muted small">@pet.Breed • @pet.Age yrs</p>
-                                <a href="pet/@pet.Id" class="btn btn-outline-primary btn-sm w-100 stretched-link">Meet @pet.Name</a>
+                                <p class="card-text text-muted">@pet.Age yrs • @pet.Gender</p>
+
+                                <div class="d-grid gap-2">
+                                    @* BUTTON 1: View Details *@
+                                    <a href="pet/@pet.Id" class="btn btn-outline-secondary btn-sm">View Details</a>
+
+                                    @* BUTTON 2: The Working Adoption Button *@
+                                    <a href="book-appointment/@pet.Id" class="btn btn-primary btn-sm">Request to Adopt</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -135,22 +119,13 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-
     private Shelter? shelter;
     private IEnumerable<Pet>? pets;
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Fetch Shelter Info
         shelter = await ShelterRepo.GetByIdAsync(Id);
-
-        if (shelter == null)
-        {
-            Nav.NavigateTo("shelters");
-            return;
-        }
-
-        // 2. Fetch Pets for this Shelter
+        if (shelter == null) { Nav.NavigateTo("shelters"); return; }
         pets = await PetRepo.GetPetsByShelterIdAsync(Id);
     }
 }
