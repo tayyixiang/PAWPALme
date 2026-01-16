@@ -1,4 +1,5 @@
 ﻿@page "/my-appointments"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using PAWPALme.Models
@@ -11,38 +12,126 @@
 @inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container mt-4">
-    <h3>My Adoption Requests</h3>
+    <h3>My Appointments</h3>
 
     @if (appointments == null)
     {
-        <p>Loading...</p>
+        <div class="spinner-border text-primary" role="status"></div>
     }
     else if (!appointments.Any())
     {
-        <p>No appointments found.</p>
+        <div class="alert alert-info">You haven't booked any appointments yet. <a href="pets">Browse pets</a></div>
     }
     else
     {
-        <div class="list-group">
-            @foreach (var appt in appointments)
-            {
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">Request for @appt.Pet?.Name</h5>
-                        <small>@appt.AppointmentDate.ToShortDateString()</small>
-                    </div>
-                    <p class="mb-1">Shelter: @appt.Shelter?.Name</p>
-                    <span class="badge @(appt.Status == AppointmentStatus.Confirmed ? "bg-success" : appt.Status == AppointmentStatus.Cancelled ? "bg-danger" : "bg-warning")">
-                        @appt.Status
-                    </span>
-                </div>
-            }
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Pet</th>
+                        <th>Shelter</th>
+                        <th>Date & Time</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var appt in appointments)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@appt.Pet?.Name</strong>
+                                <div class="small text-muted">@appt.Pet?.Breed</div>
+                            </td>
+                            <td>@appt.Shelter?.Name</td>
+                            <td>
+                                <div>@appt.AppointmentDate.ToShortDateString()</div>
+                                <small class="text-muted">@appt.AppointmentTime.ToString(@"hh\:mm")</small>
+                            </td>
+                            <td>
+                                <span class="badge @GetBadgeClass(appt.Status)">@appt.Status</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(appt)">
+                                    View Details
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     }
 </div>
 
+@* --- ADOPTER DETAILS MODAL --- *@
+@if (selectedAppointment != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Appointment Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetails"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        @if (selectedAppointment.Status == AppointmentStatus.Confirmed)
+                        {
+                            <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                            <h4 class="text-success mt-2">Confirmed</h4>
+                        }
+                        else if (selectedAppointment.Status == AppointmentStatus.Cancelled)
+                        {
+                            <i class="bi bi-x-circle-fill text-danger fs-1"></i>
+                            <h4 class="text-danger mt-2">Declined</h4>
+                        }
+                        else
+                        {
+                            <i class="bi bi-clock-fill text-warning fs-1"></i>
+                            <h4 class="text-warning mt-2">Pending Review</h4>
+                        }
+                    </div>
+
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item">
+                            <strong>Pet:</strong> @selectedAppointment.Pet?.Name
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Shelter:</strong> @selectedAppointment.Shelter?.Name
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Address:</strong><br />
+                            <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(selectedAppointment.Shelter?.Address ?? "")}")" target="_blank">
+                                @(selectedAppointment.Shelter?.Address ?? "Address not available")
+                            </a>
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Date:</strong> @selectedAppointment.AppointmentDate.ToShortDateString() <br />
+                            <strong>Time:</strong> @selectedAppointment.AppointmentTime.ToString(@"hh\:mm")
+                        </li>
+                    </ul>
+
+                    @* SHOW SHELTER NOTE IF EXISTS *@
+                    @if (!string.IsNullOrEmpty(selectedAppointment.ShelterRemarks))
+                    {
+                        <div class="alert alert-info">
+                            <strong>Note from Shelter:</strong><br />
+                            @selectedAppointment.ShelterRemarks
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetails">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private IEnumerable<Appointment>? appointments;
+    private Appointment? selectedAppointment;
 
     protected override async Task OnInitializedAsync()
     {
@@ -54,4 +143,22 @@
             appointments = await ApptRepo.GetByUserIdAsync(user.Id);
         }
     }
+
+    private void ViewDetails(Appointment appt)
+    {
+        selectedAppointment = appt;
+    }
+
+    private void CloseDetails()
+    {
+        selectedAppointment = null;
+    }
+
+    private string GetBadgeClass(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Confirmed => "bg-success",
+        AppointmentStatus.Cancelled => "bg-danger",
+        AppointmentStatus.Pending => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
 }
