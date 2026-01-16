@@ -7,59 +7,51 @@
 
 <PageTitle>@(shelter?.Name ?? "Shelter Details")</PageTitle>
 
-<style>
-    .address-link {
-        color: #212529;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-
-        .address-link:hover {
-            color: #0d6efd;
-            text-decoration: underline;
-            cursor: pointer;
-        }
-
-    .hover-card {
-        transition: transform 0.2s ease-in-out;
-    }
-
-        .hover-card:hover {
-            transform: translateY(-5px);
-        }
-</style>
-
 <div class="container mt-5">
     @if (shelter == null)
     {
-        <div class="text-center"><div class="spinner-border text-primary"></div></div>
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
     }
     else
     {
         @* --- SHELTER INFO HEADER --- *@
-        <div class="card shadow-sm border-0 mb-5">
+        <div class="card shadow-sm shelter-header-card mb-5">
             <div class="card-body p-5">
                 <div class="row align-items-center">
                     <div class="col-md-8">
                         <h1 class="display-4 fw-bold text-primary">@shelter.Name</h1>
+
                         <p class="lead">
                             <i class="bi bi-geo-alt-fill text-danger me-2"></i>
                             <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(shelter.Address)}")"
-                               target="_blank" class="address-link">@shelter.Address</a>
+                               target="_blank" class="address-link">
+                                @shelter.Address
+                            </a>
                         </p>
-                        <p class="fs-5"><i class="bi bi-telephone-fill text-success me-2"></i> @shelter.Phone</p>
+
+                        <p class="fs-5">
+                            <i class="bi bi-telephone-fill text-success me-2"></i> @shelter.Phone
+                        </p>
+
                         <hr />
-                        <p class="text-muted">@(string.IsNullOrEmpty(shelter.Description) ? "No description provided." : shelter.Description)</p>
+
+                        <p class="text-muted">
+                            @(string.IsNullOrEmpty(shelter.Description) ? "No description provided." : shelter.Description)
+                        </p>
                     </div>
+
                     <div class="col-md-4 text-center">
                         @if (!string.IsNullOrEmpty(shelter.ImageUrl))
                         {
-                            <img src="@shelter.ImageUrl" class="img-fluid rounded shadow" style="max-height: 300px; object-fit: cover;" />
+                            <img src="@shelter.ImageUrl" class="img-fluid rounded shadow shelter-logo" alt="@shelter.Name Logo" />
                         }
                         else
                         {
                             <div class="p-5 bg-light rounded text-muted">
-                                <i class="bi bi-building fs-1"></i><p>No Logo Available</p>
+                                <i class="bi bi-building fs-1"></i>
+                                <p class="mt-2">No Logo Available</p>
                             </div>
                         }
                     </div>
@@ -72,7 +64,9 @@
 
         @if (pets == null)
         {
-            <div class="spinner-border text-secondary"></div>
+            <div class="text-center py-4">
+                <div class="spinner-border text-secondary"></div>
+            </div>
         }
         else if (!pets.Any())
         {
@@ -84,17 +78,17 @@
                 @foreach (var pet in pets)
                 {
                     <div class="col-md-3">
-                        <div class="card h-100 shadow-sm border-0 hover-card">
-                            <div style="height: 200px; overflow: hidden;" class="bg-light d-flex align-items-center justify-content-center position-relative">
+                        <div class="card h-100 shadow-sm pet-card">
+                            <div class="pet-img-container">
                                 @if (!string.IsNullOrEmpty(pet.ImageUrl))
                                 {
-                                    <img src="@pet.ImageUrl" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    <img src="@pet.ImageUrl" class="pet-img" alt="@pet.Name" />
                                 }
                                 else
                                 {
                                     <span class="text-muted"><i class="bi bi-camera"></i> No Image</span>
                                 }
-                                <span class="position-absolute top-0 end-0 m-2 badge bg-dark opacity-75">@pet.Breed</span>
+                                <span class="badge bg-dark opacity-75 breed-badge">@pet.Breed</span>
                             </div>
 
                             <div class="card-body text-center">
@@ -102,10 +96,7 @@
                                 <p class="card-text text-muted">@pet.Age yrs • @pet.Gender</p>
 
                                 <div class="d-grid gap-2">
-                                    @* BUTTON 1: View Details *@
                                     <a href="pet/@pet.Id" class="btn btn-outline-secondary btn-sm">View Details</a>
-
-                                    @* BUTTON 2: The Working Adoption Button *@
                                     <a href="book-appointment/@pet.Id" class="btn btn-primary btn-sm">Request to Adopt</a>
                                 </div>
                             </div>

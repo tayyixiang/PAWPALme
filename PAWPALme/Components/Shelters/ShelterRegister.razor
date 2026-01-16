@@ -15,11 +15,11 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white">
+            <div class="card register-card">
+                <div class="card-header card-header-custom">
                     <h4 class="mb-0">Shelter Registration</h4>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <p class="text-muted mb-4">Create an account to manage your shelter and list pets.</p>
 
                     <EditForm Model="Input" OnValidSubmit="RegisterShelter" FormName="shelter-register">
@@ -27,8 +27,8 @@
                         <ValidationSummary class="text-danger mb-3" />
 
                         <div class="row">
-                            <div class="col-md-6">
-                                <h5 class="border-bottom pb-2">1. Account Login</h5>
+                            <div class="col-md-6 mb-3">
+                                <h5 class="section-title">1. Account Login</h5>
                                 <div class="mb-3">
                                     <label class="form-label">Email Address</label>
                                     <InputText @bind-Value="Input.Email" class="form-control" placeholder="name@example.com" />
@@ -43,8 +43,8 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-6">
-                                <h5 class="border-bottom pb-2">2. Shelter Details</h5>
+                            <div class="col-md-6 mb-3">
+                                <h5 class="section-title">2. Shelter Details</h5>
                                 <div class="mb-3">
                                     <label class="form-label">Shelter Name</label>
                                     <InputText @bind-Value="Input.ShelterName" class="form-control" placeholder="e.g. Happy Paws" />
@@ -64,7 +64,7 @@
 
                         <div class="d-flex justify-content-end">
                             <a href="/" class="btn btn-secondary me-2">Cancel</a>
-                            <button type="submit" class="btn btn-primary px-4">Register Shelter</button>
+                            <button type="submit" class="btn btn-primary btn-register">Register Shelter</button>
                         </div>
                     </EditForm>
                 </div>
@@ -108,13 +108,15 @@
             user.ShelterId = shelter.Id;
             await UserManager.UpdateAsync(user);
 
-            // 6. Auto Sign-In
+            // 6. Sign In & Redirect
+            // We sign them in automatically so they don't have to login again
             await SignInManager.SignInAsync(user, isPersistent: false);
-            Nav.NavigateTo("/shelter/dashboard");
+
+            // CRITICAL FIX: Redirect to the success page so they see the confirmation
+            Nav.NavigateTo("/shelter/success");
         }
         else
         {
-            // Handle Identity Errors (Password too weak, etc.)
             foreach (var error in result.Errors)
             {
                 Console.WriteLine($"Error: {error.Description}");

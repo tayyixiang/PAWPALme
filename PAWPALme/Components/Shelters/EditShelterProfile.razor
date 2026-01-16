@@ -14,14 +14,16 @@
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
+            <div class="card shadow-sm profile-card">
+                <div class="card-header bg-primary text-white card-header-custom">
                     <h3 class="mb-0">Edit Shelter Profile</h3>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     @if (ShelterModel == null)
                     {
-                        <div class="spinner-border text-primary"></div>
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary"></div>
+                        </div>
                     }
                     else
                     {
@@ -30,23 +32,30 @@
                             <ValidationSummary class="text-danger" />
 
                             <div class="text-center mb-4">
-                                <div class="mb-3 d-flex align-items-center justify-content-center bg-light rounded" style="height: 200px; overflow: hidden;">
+                                <div class="logo-preview-container">
                                     @if (!string.IsNullOrEmpty(ShelterModel.ImageUrl))
                                     {
-                                        <img src="@ShelterModel.ImageUrl" class="img-fluid" style="max-height: 100%;" />
+                                        <img src="@ShelterModel.ImageUrl" class="img-fluid logo-image" />
                                     }
                                     else
                                     {
-                                        <span class="text-muted"><i class="bi bi-building fs-1"></i><br>No Logo</span>
+                                        <div class="text-muted">
+                                            <i class="bi bi-building fs-1"></i>
+                                            <div class="mt-2">No Logo Uploaded</div>
+                                        </div>
                                     }
                                 </div>
-                                <label class="btn btn-outline-primary">
+
+                                <label class="btn btn-outline-primary upload-label">
                                     <i class="bi bi-upload"></i> Upload Logo
                                     <InputFile OnChange="HandleFileSelected" style="display: none;" accept=".jpg,.png,.jpeg" />
                                 </label>
+
                                 @if (isUploading)
                                 {
-                                    <span class="ms-2 text-muted small">Uploading...</span>
+                                    <div class="mt-2 text-muted small">
+                                        <span class="spinner-border spinner-border-sm me-1"></span> Uploading...
+                                    </div>
                                 }
                             </div>
 
@@ -71,9 +80,9 @@
                                 <InputTextArea @bind-Value="ShelterModel.Description" class="form-control" rows="5" placeholder="Tell adopters about your mission..." />
                             </div>
 
-                            <div class="d-grid gap-2">
+                            <div class="d-grid gap-2 mt-4">
                                 <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
-                                <a href="shelter/dashboard" class="btn btn-link">Cancel</a>
+                                <a href="shelter/dashboard" class="btn btn-link text-decoration-none">Cancel</a>
                             </div>
                         </EditForm>
                     }
@@ -95,7 +104,6 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         currentUser = await UserManager.GetUserAsync(authState.User);
 
-        // Load existing data only if this isn't a postback (Form Submit)
         if (currentUser?.ShelterId != null && ShelterModel.Id == 0)
         {
             var existing = await ShelterRepo.GetByIdAsync(currentUser.ShelterId.Value);
@@ -111,7 +119,6 @@
         isUploading = true;
         try
         {
-            // Re-use the FileService we built for Pets!
             var path = await FileService.UploadFileAsync(e.File, "shelters");
             ShelterModel.ImageUrl = path;
         }
@@ -126,7 +133,6 @@
     {
         if (currentUser?.ShelterId == null) return;
 
-        // Security check: Ensure we are updating OUR shelter
         if (ShelterModel.Id == currentUser.ShelterId.Value)
         {
             await ShelterRepo.UpdateAsync(ShelterModel);

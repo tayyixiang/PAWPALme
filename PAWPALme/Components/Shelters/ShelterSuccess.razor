@@ -1,20 +1,40 @@
 ﻿@page "/shelter/success"
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Registration Successful</PageTitle>
 
-<div class="container mt-5 text-center">
-    <div class="card shadow-sm border-success mx-auto" style="max-width: 500px;">
+<div class="container text-center success-container">
+    <div class="card mx-auto success-card">
         <div class="card-body p-5">
-            <h1 class="text-success display-4 mb-3"><i class="bi bi-check-circle-fill"></i></h1>
+            <h1 class="icon-large">
+                <i class="bi bi-check-circle-fill"></i>
+            </h1>
+
             <h2 class="card-title text-success">Account Created!</h2>
+
             <p class="lead mt-3">
                 Your shelter has been registered successfully.
             </p>
+
             <hr />
-            @* Hard link to force refresh *@
-            <a href="Account/Login" class="btn btn-primary btn-lg w-100">
-                Proceed to Login
-            </a>
+
+            <AuthorizeView>
+                <Authorized>
+                    @* If they are already logged in (via auto-login), show Dashboard link *@
+                    <p class="text-muted">You are now logged in.</p>
+                    <a href="/shelter/dashboard" class="btn btn-primary w-100 btn-login">
+                        Go to Dashboard
+                    </a>
+                </Authorized>
+                <NotAuthorized>
+                    @* If they are NOT logged in, show Login link *@
+                    @* BUG FIX: Added leading slash "/" to make path absolute *@
+                    <a href="/Account/Login" class="btn btn-primary w-100 btn-login">
+                        Proceed to Login
+                    </a>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
     </div>
 </div>

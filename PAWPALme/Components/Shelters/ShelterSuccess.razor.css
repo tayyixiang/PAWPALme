@@ -1,0 +1,23 @@
+﻿/* Scoped styles for ShelterSuccess */
+
+.success-container {
+    margin-top: 5rem;
+}
+
+.success-card {
+    max-width: 500px;
+    border-color: #198754; /* border-success */
+    border-radius: 10px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.icon-large {
+    font-size: 4rem;
+    color: #198754; /* text-success */
+    margin-bottom: 1rem;
+}
+
+.btn-login {
+    font-size: 1.25rem;
+    padding: 0.75rem;
+}

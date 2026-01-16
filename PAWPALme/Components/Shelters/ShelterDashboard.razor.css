@@ -1,0 +1,42 @@
+﻿/* Dashboard Card Base */
+.dashboard-card {
+    height: 100%;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s;
+    border-width: 2px; /* Make borders slightly thicker/visible */
+}
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+/* Specific Card Colors */
+.card-pets {
+    border-color: #0d6efd; /* primary */
+}
+
+.card-appointments {
+    border-color: #198754; /* success */
+}
+
+.card-profile {
+    border-color: #0dcaf0; /* info */
+}
+
+/* Icons */
+.dashboard-icon {
+    font-size: 3.5rem; /* display-4 equivalent but controlled */
+    margin-bottom: 1rem;
+}
+
+.text-pets {
+    color: #0d6efd;
+}
+
+.text-appointments {
+    color: #198754;
+}
+
+.text-profile {
+    color: #0dcaf0;
+}

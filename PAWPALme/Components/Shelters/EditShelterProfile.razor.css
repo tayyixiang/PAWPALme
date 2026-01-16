@@ -1,0 +1,29 @@
+﻿.profile-card {
+    border: none;
+}
+
+.card-header-custom {
+    padding: 1rem 1.5rem;
+}
+
+.logo-preview-container {
+    height: 200px;
+    width: 100%;
+    overflow: hidden;
+    background-color: #f8f9fa; /* bg-light */
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    border: 1px dashed #ced4da; /* Visual cue for "upload area" */
+}
+
+.logo-image {
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.upload-label {
+    cursor: pointer;
+}

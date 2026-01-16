@@ -1,0 +1,39 @@
+﻿/* Card Hover Effect */
+.hover-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s;
+    border: none;
+}
+
+    .hover-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+/* Image Container */
+.shelter-img-container {
+    height: 200px;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shelter-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Address Link Styling */
+.address-link {
+    color: #6c757d; /* Muted Grey */
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+    .address-link:hover {
+        color: #0d6efd; /* Bootstrap Primary */
+        text-decoration: underline;
+        cursor: pointer;
+    }
