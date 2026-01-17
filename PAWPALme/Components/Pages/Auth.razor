@@ -199,9 +199,34 @@
 
     public async Task LoginUser()
     {
-        var result = await SignInManager.PasswordSignInAsync(LoginModel.Email, LoginModel.Password, false, lockoutOnFailure: false);
-        if (result.Succeeded) Nav.NavigateTo("/", forceLoad: true);
-        else ErrorMessage = "Invalid login credentials.";
+        // 1. Validate Credentials
+        var user = await UserManager.FindByEmailAsync(LoginModel.Email);
+        if (user == null)
+        {
+            ErrorMessage = "Invalid login credentials.";
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(user, LoginModel.Password, false, lockoutOnFailure: false);
+
+        if (result.Succeeded)
+        {
+            // 2. Check Role & Redirect
+            var roles = await UserManager.GetRolesAsync(user);
+
+            if (roles.Contains("Shelter"))
+            {
+                Nav.NavigateTo("/shelter/dashboard", forceLoad: true);
+            }
+            else
+            {
+                Nav.NavigateTo("/", forceLoad: true);
+            }
+        }
+        else
+        {
+            ErrorMessage = "Invalid login credentials.";
+        }
     }
 
     public async Task RegisterAdopter()
