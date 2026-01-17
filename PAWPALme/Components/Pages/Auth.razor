@@ -1,283 +1,262 @@
 ﻿@page "/auth"
-@rendermode InteractiveServer
-@using System.Security.Claims
+@using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
 @using PAWPALme.Data
-@using PAWPALme.Repositories
 @using PAWPALme.Models
+@using PAWPALme.Repositories
+@inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
-@inject NavigationManager Nav
+@inject RoleManager<IdentityRole> RoleManager
 @inject IShelterRepository ShelterRepo
+@inject NavigationManager Nav
 
-<PageTitle>Login / Sign up</PageTitle>
+<PageTitle>Access | PawPal</PageTitle>
 
-<script src="https://cdn.tailwindcss.com"></script>
+<div class="neumorph-bg">
+    <div class="d-flex flex-column align-items-center w-100">
 
-<style>
-    .gradient-bg {
-        background: linear-gradient(135deg, #e0e7ff 0%, #fce7f3 100%);
-        min-height: 100vh;
-    }
-
-    .gradient-btn {
-        background: linear-gradient(to right, #4f46e5, #9333ea);
-    }
-
-        .gradient-btn:hover {
-            background: linear-gradient(to right, #4338ca, #7e22ce);
+        @if (Mode != "login")
+        {
+            <div class="glass-toggle-container">
+                <a href="auth?mode=register&role=adopter"
+                   class="btn-toggle-role @(Role != "shelter" ? "active" : "")">
+                    ADOPTER
+                </a>
+                <a href="auth?mode=register&role=shelter"
+                   class="btn-toggle-role @(Role == "shelter" ? "active" : "")">
+                    SHELTER
+                </a>
+            </div>
         }
-</style>
 
-<div class="gradient-bg flex items-center justify-center p-4">
-    <div class="w-full max-w-md">
+        <div class="auth-card @(Role == "shelter" && Mode != "login" ? "wide" : "")">
 
-        <div class="flex justify-between items-center mb-4">
-            @if (!isAdminMode)
-            {
-                <div class="flex bg-white rounded-lg p-1 shadow-sm">
-                    <button type="button"
-                            class="px-4 py-1 text-sm rounded-md transition-all @(authType == AuthType.Adopter ? "bg-indigo-100 text-indigo-700 font-semibold" : "text-gray-500 hover:text-gray-700")"
-                            @onclick="() => SetAuthType(AuthType.Adopter)">
-                        Adopter
-                    </button>
-                    <button type="button"
-                            class="px-4 py-1 text-sm rounded-md transition-all @(authType == AuthType.Shelter ? "bg-indigo-100 text-indigo-700 font-semibold" : "text-gray-500 hover:text-gray-700")"
-                            @onclick="() => SetAuthType(AuthType.Shelter)">
-                        Shelter
-                    </button>
+            <div class="text-center">
+                <div class="header-icon-wrapper @(Role == "shelter" ? "shelter" : "")">
+                    @if (Role == "shelter")
+                    {
+                        <i class="bi bi-shop-window"></i>
+                    }
+                    else
+                    {
+
+                        <i class="bi bi-person-heart"></i>
+                    }
                 </div>
-            }
-            else
-            {
-                <span></span>
-            }
-
-            <button @onclick="ToggleAdminMode"
-                    class="px-6 py-2 rounded-lg font-semibold transition-all duration-300 shadow-md hover:shadow-lg @(isAdminMode ? "bg-red-600 text-white hover:bg-red-700" : "bg-white text-gray-700 hover:bg-gray-50")">
-                @(isAdminMode ? "ADMIN MODE" : "USER")
-            </button>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-2xl p-8">
-
-            <div class="text-center mb-8">
-                <div class="inline-block p-3 rounded-full mb-4 @(isAdminMode ? "bg-red-100" : "bg-indigo-100")">
-                    <svg class="w-8 h-8 @(isAdminMode ? "text-red-600" : "text-indigo-600")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                </div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">@HeaderTitle</h1>
-                <p class="text-gray-600">@HeaderSubtitle</p>
+                <h2 class="fw-bold text-dark mb-1">
+                    @(Mode == "login" ? "Welcome Back" : (Role == "shelter" ? "Partner Program" : "Join PawPal"))
+                </h2>
+                <p class="text-muted small mb-4">
+                    @(Mode == "login" ? "Log in to access your dashboard" : (Role == "shelter" ? "Register your shelter to manage pets" : "Find your player 2 today"))
+                </p>
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            @if (!string.IsNullOrEmpty(ErrorMessage))
             {
-                <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-                    @errorMessage
-                </div>
+                <div class="alert alert-danger py-2 small text-center rounded-pill mb-4">@ErrorMessage</div>
             }
 
-            <EditForm Model="form" OnValidSubmit="HandleSubmit" class="space-y-5">
-                <DataAnnotationsValidator />
-
-                @if (isLoginMode)
-                {
-                    <div class="p-4 bg-gray-50 rounded-lg text-center border border-gray-200">
-                        <p class="text-gray-600 mb-4 text-sm">To ensure your security, please sign in via our secure portal.</p>
-                        <a href="Account/Login" class="block w-full py-2 rounded-lg font-semibold text-white transition-all shadow-md gradient-btn text-center no-underline">
-                            Proceed to Login
-                        </a>
-                    </div>
-                }
-                else
-                {
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                        <InputText @bind-Value="form.Email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="user@example.com" />
-                    </div>
-
-                    @if (!isAdminMode)
-                    {
-                        if (authType == AuthType.Adopter)
-                        {
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                                <InputText @bind-Value="form.AdopterName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                            </div>
-                        }
-                        else
-                        {
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Shelter Name</label>
-                                <InputText @bind-Value="form.ShelterName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                                <InputText @bind-Value="form.ShelterAddress" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                                <InputText @bind-Value="form.ShelterPhone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                                <InputTextArea @bind-Value="form.ShelterDescription" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                            </div>
-                        }
-                    }
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <InputText type="password" @bind-Value="form.Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
-                        <InputText type="password" @bind-Value="form.ConfirmPassword" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
-
-                    <button type="submit"
-                            class="w-full py-3 rounded-lg font-semibold text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 @(isAdminMode ? "bg-red-600 hover:bg-red-700" : "gradient-btn")">
-                        Create Account
-                    </button>
-                }
-
-            </EditForm>
-
-            @if (!isAdminMode)
+            @if (Mode == "login")
             {
-                <div class="mt-6 text-center">
-                    <p class="text-gray-600">
-                        @(isLoginMode ? "Don't have an account? " : "Already have an account? ")
-                        <button @onclick="ToggleLoginMode" class="text-indigo-600 hover:text-indigo-700 font-semibold">
-                            @(isLoginMode ? "Sign up" : "Sign in")
-                        </button>
+                <EditForm Model="LoginModel" OnValidSubmit="LoginUser" FormName="login-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger small list-unstyled text-center mb-3" />
+
+                    <div class="vstack gap-3">
+                        <div class="input-group-custom">
+                            <i class="bi bi-envelope input-icon"></i>
+                            <InputText @bind-Value="LoginModel.Email" class="form-input" placeholder="Email Address" />
+                        </div>
+                        <div class="input-group-custom">
+                            <i class="bi bi-lock input-icon"></i>
+                            <InputText type="password" @bind-Value="LoginModel.Password" class="form-input" placeholder="Password" />
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-n2 mb-2">
+                            <a href="#" class="small text-decoration-none text-muted">Forgot password?</a>
+                        </div>
+
+                        <button type="submit" class="liquid-btn mt-3">Log In</button>
+                    </div>
+                </EditForm>
+
+                <div class="text-center mt-4 pt-3 border-top border-light">
+                    <p class="text-muted small mb-0">
+                        New User? <a href="auth?mode=register&role=adopter" class="toggle-link ms-1">Create Account</a>
                     </p>
                 </div>
             }
+
+            else if (Mode == "register" && Role != "shelter")
+            {
+                <EditForm Model="AdopterModel" OnValidSubmit="RegisterAdopter" FormName="adopter-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger small list-unstyled text-center mb-3" />
+
+                    <div class="vstack gap-3">
+                        <div class="input-group-custom">
+                            <i class="bi bi-person input-icon"></i>
+                            <InputText @bind-Value="AdopterModel.FullName" class="form-input" placeholder="Full Name" />
+                        </div>
+                        <div class="input-group-custom">
+                            <i class="bi bi-envelope input-icon"></i>
+                            <InputText @bind-Value="AdopterModel.Email" class="form-input" placeholder="Email Address" />
+                        </div>
+                        <div class="input-group-custom">
+                            <i class="bi bi-lock input-icon"></i>
+                            <InputText type="password" @bind-Value="AdopterModel.Password" class="form-input" placeholder="Create Password" />
+                        </div>
+
+                        <button type="submit" class="liquid-btn mt-3">Create Account</button>
+                    </div>
+                </EditForm>
+
+                <div class="text-center mt-4 pt-3 border-top border-light">
+                    <p class="text-muted small mb-0">
+                        Already Registered? <a href="auth?mode=login" class="toggle-link ms-1">Log In</a>
+                    </p>
+                </div>
+            }
+
+            else if (Mode == "register" && Role == "shelter")
+            {
+                <EditForm Model="ShelterModel" OnValidSubmit="RegisterShelter" FormName="shelter-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger small list-unstyled text-center mb-3" />
+
+                    <div class="vstack gap-3">
+                        <div class="input-group-custom">
+                            <i class="bi bi-shop input-icon"></i>
+                            <InputText @bind-Value="ShelterModel.ShelterName" class="form-input" placeholder="Shelter Name" />
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="input-group-custom m-0">
+                                    <i class="bi bi-telephone input-icon"></i>
+                                    <InputText @bind-Value="ShelterModel.Phone" class="form-input" placeholder="Phone" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-group-custom m-0">
+                                    <i class="bi bi-geo-alt input-icon"></i>
+                                    <InputText @bind-Value="ShelterModel.Address" class="form-input" placeholder="Address" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="input-group-custom">
+                            <i class="bi bi-envelope input-icon"></i>
+                            <InputText @bind-Value="ShelterModel.Email" class="form-input" placeholder="Email Address" />
+                        </div>
+                        <div class="input-group-custom">
+                            <i class="bi bi-lock input-icon"></i>
+                            <InputText type="password" @bind-Value="ShelterModel.Password" class="form-input" placeholder="Create Password" />
+                        </div>
+
+                        <button type="submit" class="liquid-btn mt-3">Register Shelter</button>
+                    </div>
+                </EditForm>
+
+                <div class="text-center mt-4 pt-3 border-top border-light">
+                    <p class="text-muted small mb-0">
+                        Already Registered? <a href="auth?mode=login" class="toggle-link ms-1">Log In</a>
+                    </p>
+                </div>
+            }
+
         </div>
     </div>
 </div>
 
 @code {
-    private bool isLoginMode = true;
-    private bool isAdminMode = false;
-    private string? errorMessage;
+    // --- QUERY PARAMETERS (This makes the buttons work!) ---
+    [SupplyParameterFromQuery]
+    public string? Mode { get; set; } // "login" or "register"
 
-    private AuthType authType = AuthType.Adopter;
-    private AuthForm form = new();
+    [SupplyParameterFromQuery]
+    public string? Role { get; set; } // "adopter" or "shelter"
 
-    private string HeaderTitle => isAdminMode ? "Admin Access" : (authType == AuthType.Shelter ? "Shelter Portal" : "Welcome");
-    private string HeaderSubtitle => isLoginMode ? "Sign in to your account" : "Create a new account";
+    private string? ErrorMessage;
 
-    private void SetAuthType(AuthType type)
+    protected override void OnInitialized()
     {
-        authType = type;
-        isAdminMode = false;
-        ResetMessages();
-        form = new AuthForm();
+        // Default to login if no mode specified
+        if (string.IsNullOrEmpty(Mode)) Mode = "login";
     }
 
-    private void ToggleAdminMode()
+    // --- DISTINCT MODELS FOR EACH FORM ---
+    [SupplyParameterFromForm(FormName = "login-form")]
+    public LoginInput LoginModel { get; set; } = new();
+
+    [SupplyParameterFromForm(FormName = "adopter-form")]
+    public AdopterInput AdopterModel { get; set; } = new();
+
+    [SupplyParameterFromForm(FormName = "shelter-form")]
+    public ShelterInput ShelterModel { get; set; } = new();
+
+    // --- ACTIONS ---
+
+    public async Task LoginUser()
     {
-        isAdminMode = !isAdminMode;
-        isLoginMode = true;
-        authType = AuthType.Adopter;
-        ResetMessages();
+        var result = await SignInManager.PasswordSignInAsync(LoginModel.Email, LoginModel.Password, false, lockoutOnFailure: false);
+        if (result.Succeeded) Nav.NavigateTo("/", forceLoad: true);
+        else ErrorMessage = "Invalid login credentials.";
     }
 
-    private void ToggleLoginMode()
+    public async Task RegisterAdopter()
     {
-        isLoginMode = !isLoginMode;
-        ResetMessages();
-    }
+        var user = new ApplicationUser { UserName = AdopterModel.Email, Email = AdopterModel.Email, FullName = AdopterModel.FullName };
+        var result = await UserManager.CreateAsync(user, AdopterModel.Password);
 
-    private void ResetMessages()
-    {
-        errorMessage = null;
-    }
-
-    private async Task HandleSubmit()
-    {
-        ResetMessages();
-        if (isLoginMode)
+        if (result.Succeeded)
         {
-            // Just redirect to standard login, as we cannot sign in from here
-            Nav.NavigateTo("Account/Login", true);
+            await SignInManager.SignInAsync(user, isPersistent: false);
+            Nav.NavigateTo("/", forceLoad: true);
         }
-        else
-        {
-            await HandleRegister();
-        }
+        else ErrorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
     }
 
-    private async Task HandleRegister()
+    public async Task RegisterShelter()
     {
-        if (isAdminMode) { errorMessage = "Admin registration is restricted."; return; }
-        if (form.Password != form.ConfirmPassword) { errorMessage = "Passwords do not match."; return; }
-        if (string.IsNullOrWhiteSpace(form.Email)) { errorMessage = "Email is required."; return; }
+        if (!await RoleManager.RoleExistsAsync("Shelter")) await RoleManager.CreateAsync(new IdentityRole("Shelter"));
 
-        if (authType == AuthType.Shelter && string.IsNullOrWhiteSpace(form.ShelterName)) { errorMessage = "Shelter name is required."; return; }
-        if (authType == AuthType.Adopter && string.IsNullOrWhiteSpace(form.AdopterName)) { errorMessage = "Name is required."; return; }
+        var user = new ApplicationUser { UserName = ShelterModel.Email, Email = ShelterModel.Email, FullName = ShelterModel.ShelterName };
+        var result = await UserManager.CreateAsync(user, ShelterModel.Password);
 
-        try
+        if (result.Succeeded)
         {
-            var user = new ApplicationUser { UserName = form.Email, Email = form.Email, EmailConfirmed = true };
-            var create = await UserManager.CreateAsync(user, form.Password ?? "");
+            await UserManager.AddToRoleAsync(user, "Shelter");
+            var shelter = new Shelter { Name = ShelterModel.ShelterName, Address = ShelterModel.Address, Phone = ShelterModel.Phone, OwnerUserId = user.Id };
+            await ShelterRepo.AddAsync(shelter);
 
-            if (!create.Succeeded)
-            {
-                errorMessage = string.Join(" ", create.Errors.Select(e => e.Description));
-                return;
-            }
+            user.ShelterId = shelter.Id;
+            await UserManager.UpdateAsync(user);
 
-            if (authType == AuthType.Adopter)
-            {
-                await UserManager.AddToRoleAsync(user, "Adopter");
-                await UserManager.AddClaimAsync(user, new Claim("FullName", form.AdopterName!.Trim()));
-            }
-            else
-            {
-                await UserManager.AddToRoleAsync(user, "Shelter");
-
-                var newShelter = new Shelter
-                {
-                    Name = form.ShelterName!.Trim(),
-                    Address = (form.ShelterAddress ?? "").Trim(),
-                    Phone = (form.ShelterPhone ?? "").Trim(),
-                    Description = (form.ShelterDescription ?? "").Trim(),
-                    OwnerUserId = user.Id
-                };
-                await ShelterRepo.AddAsync(newShelter);
-            }
-
-            // ✅ FIX: Redirect to Login Page instead of trying to sign in here
-            // This prevents the "Headers read-only" crash
-            Nav.NavigateTo("Account/Login", true);
+            await SignInManager.SignInAsync(user, isPersistent: false);
+            Nav.NavigateTo("/shelter/dashboard", forceLoad: true);
         }
-        catch (Exception ex)
-        {
-            errorMessage = $"System Error: {ex.Message}";
-        }
+        else ErrorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
     }
 
-    private sealed class AuthForm
+    // --- INPUT CLASSES ---
+    public class LoginInput
     {
-        public string? Email { get; set; }
-        public string? Password { get; set; }
-        public string? ConfirmPassword { get; set; }
-        public string? AdopterName { get; set; }
-        public string? ShelterName { get; set; }
-        public string? ShelterAddress { get; set; }
-        public string? ShelterPhone { get; set; }
-        public string? ShelterDescription { get; set; }
+        [Required] public string Email { get; set; } = "";
+        [Required] public string Password { get; set; } = "";
     }
-
-    private enum AuthType { Adopter, Shelter }
+    public class AdopterInput
+    {
+        [Required] public string FullName { get; set; } = "";
+        [Required, EmailAddress] public string Email { get; set; } = "";
+        [Required] public string Password { get; set; } = "";
+    }
+    public class ShelterInput
+    {
+        [Required, EmailAddress] public string Email { get; set; } = "";
+        [Required] public string Password { get; set; } = "";
+        [Required] public string ShelterName { get; set; } = "";
+        [Required] public string Address { get; set; } = "";
+        [Required] public string Phone { get; set; } = "";
+    }
 }
-
-
-
-
-
-
-

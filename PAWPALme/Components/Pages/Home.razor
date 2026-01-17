@@ -24,27 +24,15 @@
                             </a>
                         </Authorized>
                         <NotAuthorized>
-                            <div class="d-flex gap-3">
-                                <a href="Account/Login" class="neu-btn neu-btn-sm">
-                                    <i class="bi bi-power me-2"></i>Log In
-                                </a>
-                                <div class="btn-group">
-                                    <button type="button" class="neu-btn neu-btn-primary neu-btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="bi bi-person-plus me-2"></i>Sign Up
-                                    </button>
-                                    <ul class="dropdown-menu neu-dropdown">
-                                        <li><a class="dropdown-item" href="Account/Register">As Adopter</a></li>
-                                        <li><a class="dropdown-item" href="shelter/register">As Shelter</a></li>
-                                    </ul>
-                                </div>
-                            </div>
+                            <a href="auth" class="neu-btn neu-btn-primary neu-btn-sm">
+                                <i class="bi bi-power me-2"></i>Log In / Sign Up
+                            </a>
                         </NotAuthorized>
                     </AuthorizeView>
                 </div>
 
                 <div class="text-center mt-3">
                     <h1 class="display-3 fw-bold text-dark mb-4">The Future of <span class="text-primary">Pet Adoption</span></h1>
-
                     <div class="row justify-content-center">
                         <div class="col-lg-8">
                             <p class="lead text-muted mb-4">
@@ -104,23 +92,16 @@
                                 </div>
                             }
                         </div>
-
                         <h4 class="fw-bold mb-1">@pet.Name</h4>
                         <p class="text-muted small mb-3">@pet.Breed • @pet.Age yrs</p>
-
-                        <a href="pet/@pet.Id" class="neu-btn neu-btn-sm w-100 text-center">
-                            View Details
-                        </a>
+                        <a href="pet/@pet.Id" class="neu-btn neu-btn-sm w-100 text-center">View Details</a>
                     </div>
                 </div>
             }
         </div>
-
         <div class="row">
             <div class="col-12 text-center">
-                <a href="pets" class="neu-btn neu-btn-primary px-5 py-3">
-                    <i class="bi bi-collection me-2"></i> View All Pets
-                </a>
+                <a href="pets" class="neu-btn neu-btn-primary px-5 py-3"><i class="bi bi-collection me-2"></i> View All Pets</a>
             </div>
         </div>
     }
@@ -129,13 +110,9 @@
 @code {
     private IEnumerable<Pet>? _pets;
     private IEnumerable<Pet> _petsPreview = new List<Pet>();
-
     protected override async Task OnInitializedAsync()
     {
-        // Fetch all pets from repository
         _pets = await PetRepo.GetAllAsync();
-
-        // Logic: Order by newest (DateAdded) and take top 3 for the preview row
         _petsPreview = _pets.OrderByDescending(p => p.DateAdded).Take(3).ToList();
     }
 }
