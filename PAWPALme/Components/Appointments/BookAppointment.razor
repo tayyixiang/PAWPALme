@@ -16,28 +16,32 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
+            <div class="card booking-card">
+                <div class="card-header card-header-custom">
                     <h4 class="mb-0">Adoption Application</h4>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     @if (targetPet == null)
                     {
-                        <div class="text-center"><div class="spinner-border text-primary"></div></div>
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary"></div>
+                        </div>
                     }
                     else
                     {
-                        <div class="alert alert-light border border-primary d-flex align-items-center mb-4">
-                            <i class="bi bi-heart-fill text-danger fs-3 me-3"></i>
+                        <div class="pet-summary">
+                            <i class="bi bi-heart-fill pet-icon"></i>
                             <div>
                                 <h5 class="mb-0">You are applying for <strong>@targetPet.Name</strong></h5>
-                                <small class="text-muted">Breed: @targetPet.Breed • Shelter: @(targetPet.Shelter?.Name ?? "Unknown Shelter")</small>
+                                <small class="text-muted">
+                                    Breed: @targetPet.Breed • Shelter: @(targetPet.Shelter?.Name ?? "Unknown Shelter")
+                                </small>
                             </div>
                         </div>
 
                         <EditForm Model="Input" OnValidSubmit="SubmitApplication" FormName="book-appointment">
                             <DataAnnotationsValidator />
-                            <ValidationSummary class="text-danger" />
+                            <ValidationSummary class="text-danger mb-3" />
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -50,14 +54,15 @@
                                 </div>
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-4">
                                 <label class="form-label">Why do you want to adopt @targetPet.Name?</label>
-                                <InputTextArea @bind-Value="Input.Notes" class="form-control" rows="4" placeholder="Tell us about your home environment..." />
+                                <InputTextArea @bind-Value="Input.Notes" class="form-control" rows="4"
+                                               placeholder="Tell us about your home environment..." />
                             </div>
 
-                            <div class="d-flex justify-content-between mt-4">
+                            <div class="d-flex justify-content-between align-items-center mt-4">
                                 <a href="shelter/@targetPet.ShelterId" class="btn btn-outline-secondary">Cancel</a>
-                                <button type="submit" class="btn btn-primary btn-lg px-5">Submit Request</button>
+                                <button type="submit" class="btn btn-primary btn-lg btn-submit">Submit Request</button>
                             </div>
                         </EditForm>
                     }
@@ -78,10 +83,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Fetch Pet Details
         targetPet = await PetRepo.GetByIdAsync(PetId);
 
-        // 2. Default date to tomorrow
+        // Default date to tomorrow
         if (Input.Date == default) Input.Date = DateTime.Today.AddDays(1);
         if (Input.Time == default) Input.Time = DateTime.Now;
     }
@@ -95,7 +99,6 @@
 
         if (user == null) return;
 
-        // 1. Create the Application Stub
         var appStub = new AdoptionApplication
         {
             ApplicantName = user.UserName ?? "Unknown",
@@ -106,7 +109,6 @@
             Status = ApplicationStatus.Pending
         };
 
-        // 2. Create Appointment
         var appointment = new Appointment
         {
             AppointmentDate = Input.Date,
@@ -114,9 +116,28 @@
             Notes = Input.Notes,
             Status = AppointmentStatus.Pending,
             PetId = PetId,
-
-            // FIX: Removed '?? 0' because ShelterId is already a required int
             ShelterId = targetPet.ShelterId,
+            AdopterUserId = user.Id,
+            AdoptionApplication = appStub
+        };
+
+        await ApptRepo.AddAsync(appointment);
+        Nav.NavigateTo("my-appointments");
+    }
+
+    public class BookingModel
+    {
+        [Required]
+        public DateTime Date { get; set; }
+
+        [Required]
+        public DateTime Time { get; set; }
+
+        [Required(ErrorMessage = "Please tell the shelter a little about yourself.")]
+        public string Notes { get; set; } = "";
+    }
+}
+       ShelterId = targetPet.ShelterId,
 
             AdopterUserId = user.Id,
             AdoptionApplication = appStub

@@ -1,0 +1,23 @@
+﻿/* Styling for the modal backdrop and cards */
+.modal-backdrop-custom {
+    background-color: rgba(0, 0, 0, 0.5);
+    display: block;
+}
+
+.table-card {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    overflow: hidden;
+}
+
+.applicant-name {
+    font-weight: bold;
+    color: #212529;
+}
+
+.btn-action-group {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}

@@ -1,0 +1,42 @@
+﻿/* Card Styling */
+.booking-card {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.card-header-custom {
+    background-color: #0d6efd; /* Bootstrap Primary */
+    color: white;
+    padding: 1rem 1.5rem;
+}
+
+/* Pet Summary Alert */
+.pet-summary {
+    background-color: #f8f9fa;
+    border-left: 5px solid #0d6efd;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.pet-icon {
+    font-size: 2rem;
+    color: #dc3545;
+    margin-right: 1rem;
+}
+
+/* Form Controls */
+.form-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.btn-submit {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    font-weight: 600;
+}

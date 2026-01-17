@@ -16,11 +16,13 @@
 
     @if (appointments == null)
     {
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
     }
     else if (!appointments.Any())
     {
-        <div class="alert alert-info">You haven't booked any appointments yet. <a href="pets">Browse pets</a></div>
+        <div class="alert alert-info">
+            You haven't booked any appointments yet. <a href="pets">Browse pets</a>
+        </div>
     }
     else
     {
@@ -40,13 +42,14 @@
                     {
                         <tr>
                             <td>
-                                <strong>@appt.Pet?.Name</strong>
+                                <div class="pet-name">@appt.Pet?.Name</div>
                                 <div class="small text-muted">@appt.Pet?.Breed</div>
                             </td>
                             <td>@appt.Shelter?.Name</td>
                             <td>
+                                @* FIX: Convert TimeSpan to DateTime *@
                                 <div>@appt.AppointmentDate.ToShortDateString()</div>
-                                <small class="text-muted">@appt.AppointmentTime.ToString(@"hh\:mm")</small>
+                                <small class="text-muted">@DateTime.Today.Add(appt.AppointmentTime).ToString("hh:mm tt")</small>
                             </td>
                             <td>
                                 <span class="badge @GetBadgeClass(appt.Status)">@appt.Status</span>
@@ -67,7 +70,7 @@
 @* --- ADOPTER DETAILS MODAL --- *@
 @if (selectedAppointment != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal fade show modal-backdrop-custom" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -75,54 +78,60 @@
                     <button type="button" class="btn-close" @onclick="CloseDetails"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="text-center mb-3">
+                    <div class="status-header">
                         @if (selectedAppointment.Status == AppointmentStatus.Confirmed)
                         {
-                            <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                            <i class="bi bi-check-circle-fill text-success status-icon"></i>
                             <h4 class="text-success mt-2">Confirmed</h4>
                         }
                         else if (selectedAppointment.Status == AppointmentStatus.Cancelled)
                         {
-                            <i class="bi bi-x-circle-fill text-danger fs-1"></i>
-                            <h4 class="text-danger mt-2">Declined</h4>
+                            <i class="bi bi-x-circle-fill text-danger status-icon"></i>
+                            <h4 class="text-danger mt-2">Declined / Cancelled</h4>
                         }
                         else
                         {
-                            <i class="bi bi-clock-fill text-warning fs-1"></i>
+                            <i class="bi bi-clock-fill text-warning status-icon"></i>
                             <h4 class="text-warning mt-2">Pending Review</h4>
                         }
                     </div>
 
-                    <ul class="list-group list-group-flush mb-3">
-                        <li class="list-group-item">
-                            <strong>Pet:</strong> @selectedAppointment.Pet?.Name
-                        </li>
-                        <li class="list-group-item">
-                            <strong>Shelter:</strong> @selectedAppointment.Shelter?.Name
-                        </li>
-                        <li class="list-group-item">
-                            <strong>Address:</strong><br />
-                            <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(selectedAppointment.Shelter?.Address ?? "")}")" target="_blank">
-                                @(selectedAppointment.Shelter?.Address ?? "Address not available")
-                            </a>
-                        </li>
-                        <li class="list-group-item">
-                            <strong>Date:</strong> @selectedAppointment.AppointmentDate.ToShortDateString() <br />
-                            <strong>Time:</strong> @selectedAppointment.AppointmentTime.ToString(@"hh\:mm")
-                        </li>
-                    </ul>
-
-                    @* SHOW SHELTER NOTE IF EXISTS *@
                     @if (!string.IsNullOrEmpty(selectedAppointment.ShelterRemarks))
                     {
-                        <div class="alert alert-info">
-                            <strong>Note from Shelter:</strong><br />
-                            @selectedAppointment.ShelterRemarks
+                        <div class="alert alert-primary mb-3">
+                            <strong><i class="bi bi-info-circle-fill"></i> Note from Shelter:</strong>
+                            <div class="mt-1">@selectedAppointment.ShelterRemarks</div>
                         </div>
                     }
+
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="info-label">Pet</span>
+                            <span>@selectedAppointment.Pet?.Name</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="info-label">Shelter</span>
+                            <span>@selectedAppointment.Shelter?.Name</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="info-label">Date</span>
+                            <span>@selectedAppointment.AppointmentDate.ToShortDateString()</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="info-label">Time</span>
+                            @* FIX: Convert TimeSpan to DateTime *@
+                            <span>@DateTime.Today.Add(selectedAppointment.AppointmentTime).ToString("hh:mm tt")</span>
+                        </li>
+                        <li class="list-group-item">
+                            <span class="info-label d-block mb-1">Location</span>
+                            <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(selectedAppointment.Shelter?.Address ?? "")}")" target="_blank">
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @(selectedAppointment.Shelter?.Address ?? "Address not available")
+                            </a>
+                        </li>
+                    </ul>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseDetails">Close</button>
+                    <button type="button" class="btn btn-secondary w-100" @onclick="CloseDetails">Close</button>
                 </div>
             </div>
         </div>
@@ -144,15 +153,8 @@
         }
     }
 
-    private void ViewDetails(Appointment appt)
-    {
-        selectedAppointment = appt;
-    }
-
-    private void CloseDetails()
-    {
-        selectedAppointment = null;
-    }
+    private void ViewDetails(Appointment appt) => selectedAppointment = appt;
+    private void CloseDetails() => selectedAppointment = null;
 
     private string GetBadgeClass(AppointmentStatus status) => status switch
     {
