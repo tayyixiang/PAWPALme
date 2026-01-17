@@ -59,11 +59,6 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-center gap-3">
-                        <a href="pets" class="neu-btn neu-btn-primary px-5 py-3 fs-5">
-                            <i class="bi bi-search me-2"></i>Browse Database
-                        </a>
-                    </div>
                 </div>
 
             </div>
@@ -72,8 +67,8 @@
 
     <div class="row mb-3">
         <div class="col-12 text-center">
-            <h3 class="text-dark fw-bold mb-0">Incoming Transmissions</h3>
-            <p class="text-muted small">Latest additions to the network</p>
+            <h3 class="text-dark fw-bold mb-0">Featured Pets</h3>
+            <p class="text-muted small">Meet our newest arrivals</p>
         </div>
     </div>
 
@@ -142,7 +137,6 @@
         _pets = await PetRepo.GetAllAsync();
 
         // Logic: Order by newest (DateAdded) and take top 3 for the preview row
-        // This ensures the homepage always looks fresh
         _petsPreview = _pets.OrderByDescending(p => p.DateAdded).Take(3).ToList();
     }
 }
