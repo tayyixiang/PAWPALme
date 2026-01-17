@@ -1,73 +1,148 @@
 ﻿@page "/"
 @using PAWPALme.Models
 @using PAWPALme.Repositories
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IPetRepository PetRepo
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>PawPal - Find Your Friend</PageTitle>
+<PageTitle>PawPal | Home</PageTitle>
 
-<div class="px-4 py-5 my-5 text-center bg-light rounded-3 shadow-sm">
-    <h1 class="display-5 fw-bold text-primary">Welcome to PawPal</h1>
-    <div class="col-lg-6 mx-auto">
-        <p class="lead mb-4">Connecting loving homes with pets in need.</p>
-        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-            <a href="pets" class="btn btn-primary btn-lg px-4 gap-3">Browse All Pets</a>
+<div class="neumorph-container">
 
-            @* This link now matches the sidebar perfectly *@
-            <a href="shelter/register" class="btn btn-outline-secondary btn-lg px-4">Register a Shelter</a>
+    <div class="row min-vh-50 mb-5">
+        <div class="col-12">
+            <div class="neu-card p-5 h-100 d-flex flex-column justify-content-center">
+
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <span class="badge rounded-pill text-bg-primary px-3 py-2">SYSTEM: ONLINE</span>
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <a href="my-appointments" class="neu-btn neu-btn-sm">
+                                <i class="bi bi-controller me-2"></i>Dashboard
+                            </a>
+                        </Authorized>
+                        <NotAuthorized>
+                            <div class="d-flex gap-3">
+                                <a href="Account/Login" class="neu-btn neu-btn-sm">
+                                    <i class="bi bi-power me-2"></i>Log In
+                                </a>
+                                <div class="btn-group">
+                                    <button type="button" class="neu-btn neu-btn-primary neu-btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-person-plus me-2"></i>Sign Up
+                                    </button>
+                                    <ul class="dropdown-menu neu-dropdown">
+                                        <li><a class="dropdown-item" href="Account/Register">As Adopter</a></li>
+                                        <li><a class="dropdown-item" href="shelter/register">As Shelter</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+
+                <div class="text-center mt-3">
+                    <h1 class="display-3 fw-bold text-dark mb-4">The Future of <span class="text-primary">Pet Adoption</span></h1>
+
+                    <div class="row justify-content-center">
+                        <div class="col-lg-8">
+                            <p class="lead text-muted mb-4">
+                                PawPal bridges the digital gap between rescue organizations and potential adopters.
+                                We provide a centralized, streamlined dashboard that replaces fragmented information
+                                with transparency and ease.
+                            </p>
+                            <p class="text-muted mb-5">
+                                Initialize your journey today. Browse our verified database of adoptable pets,
+                                view detailed medical profiles, and connect directly with local shelters.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="pets" class="neu-btn neu-btn-primary px-5 py-3 fs-5">
+                            <i class="bi bi-search me-2"></i>Browse Database
+                        </a>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
-</div>
 
-<div class="container">
-    <h3 class="mb-4 text-center">Featured Pets</h3>
+    <div class="row mb-3">
+        <div class="col-12 text-center">
+            <h3 class="text-dark fw-bold mb-0">Incoming Transmissions</h3>
+            <p class="text-muted small">Latest additions to the network</p>
+        </div>
+    </div>
 
-    @if (pets == null)
+    @if (_pets == null)
     {
-        <div class="text-center">
+        <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading assets...</p>
         </div>
     }
-    else if (!pets.Any())
+    else if (!_pets.Any())
     {
-        <div class="alert alert-info text-center">No pets are currently available for adoption. Check back soon!</div>
+        <div class="neu-card p-5 text-center">
+            <i class="bi bi-inbox fs-1 text-muted"></i>
+            <p class="mt-3">No data streams found.</p>
+        </div>
     }
     else
     {
-        <div class="row row-cols-1 row-cols-md-3 g-4">
-            @foreach (var pet in pets.Take(3))
+        <div class="row g-4 mb-5">
+            @foreach (var pet in _petsPreview)
             {
-                <div class="col">
-                    <div class="card h-100 shadow-sm border-0">
-                        <div style="height: 250px; overflow: hidden;" class="bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center">
+                <div class="col-md-4 col-sm-6">
+                    <div class="neu-card h-100 pet-card">
+                        <div class="pet-img-wrapper mb-3">
                             @if (!string.IsNullOrEmpty(pet.ImageUrl))
                             {
-                                <img src="@pet.ImageUrl" style="width: 100%; height: 100%; object-fit: cover;" alt="@pet.Name">
+                                <img src="@pet.ImageUrl" class="img-fluid rounded-3" alt="@pet.Name" />
                             }
                             else
                             {
-                                <span class="text-muted"><i class="bi bi-camera"></i> No Image</span>
+                                <div class="neu-inset d-flex align-items-center justify-content-center h-100 rounded-3 text-muted">
+                                    <i class="bi bi-camera fs-1"></i>
+                                </div>
                             }
                         </div>
-                        <div class="card-body text-center">
-                            <h5 class="card-title fw-bold">@pet.Name</h5>
-                            <p class="card-text text-muted">@pet.Breed • @pet.Age yrs</p>
-                            <a href="pet/@pet.Id" class="btn btn-outline-primary btn-sm">View Details</a>
-                        </div>
+
+                        <h4 class="fw-bold mb-1">@pet.Name</h4>
+                        <p class="text-muted small mb-3">@pet.Breed • @pet.Age yrs</p>
+
+                        <a href="pets/details/@pet.Id" class="neu-btn neu-btn-sm w-100 text-center">
+                            View Details
+                        </a>
                     </div>
                 </div>
             }
         </div>
-        <div class="text-center mt-4">
-            <a href="pets" class="btn btn-link">View All Pets &rarr;</a>
+
+        <div class="row">
+            <div class="col-12 text-center">
+                <a href="pets" class="neu-btn neu-btn-primary px-5 py-3">
+                    <i class="bi bi-collection me-2"></i> View All Pets
+                </a>
+            </div>
         </div>
     }
 </div>
 
 @code {
-    private IEnumerable<Pet>? pets;
+    private IEnumerable<Pet>? _pets;
+    private IEnumerable<Pet> _petsPreview = new List<Pet>();
 
     protected override async Task OnInitializedAsync()
     {
-        pets = await PetRepo.GetAllAsync();
+        // Fetch all pets from repository
+        _pets = await PetRepo.GetAllAsync();
+
+        // Logic: Order by newest (DateAdded) and take top 3 for the preview row
+        // This ensures the homepage always looks fresh
+        _petsPreview = _pets.OrderByDescending(p => p.DateAdded).Take(3).ToList();
     }
 }
