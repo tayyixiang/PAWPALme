@@ -3,77 +3,108 @@
 @using System.Security.Claims
 @using PAWPALme.Models
 @using PAWPALme.Repositories
+@using PAWPALme.Enums
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IShelterRepository ShelterRepo
+@inject IPetRepository PetRepo
+@inject IAppointmentRepository ApptRepo
 @inject NavigationManager Nav
 @attribute [Authorize(Roles = "Shelter")]
 
-<PageTitle>Shelter Dashboard | PawPal</PageTitle>
+<PageTitle>Shelter Command | PawPal</PageTitle>
 
 <div class="container py-5">
 
-    @if (_myShelter == null)
+    @if (_isLoading)
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary"></div>
+            <p class="mt-3 text-muted">Loading command center...</p>
+        </div>
+    }
+    else if (_myShelter == null)
+    {
+        <div class="alert alert-warning text-center rounded-pill">
+            <i class="bi bi-exclamation-triangle me-2"></i> No Shelter Found
         </div>
     }
     else
     {
         <div class="text-center mb-5">
-            <h1 class="display-4 fw-bold text-dark mb-2">
+            <h1 class="display-5 fw-bold text-dark mb-2">
                 @_myShelter.Name
             </h1>
-            <p class="text-muted">Command Center</p>
+            <p class="text-muted text-uppercase ls-2 small fw-bold">Command Center</p>
         </div>
 
-        <div class="row g-4 justify-content-center">
+        <div class="row g-4 mb-5 justify-content-center">
+            <div class="col-md-4 col-lg-3">
+                <div class="glass-stat-card text-center">
+                    <h2 class="fw-bold text-primary mb-0">@_petCount</h2>
+                    <small class="text-muted fw-bold">Active Pets</small>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="glass-stat-card text-center">
+                    <h2 class="fw-bold text-purple mb-0">@_pendingAppts</h2>
+                    <small class="text-muted fw-bold">Requests</small>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="glass-stat-card text-center">
+                    <h2 class="fw-bold text-success mb-0">@_confirmedAppts</h2>
+                    <small class="text-muted fw-bold">Visits</small>
+                </div>
+            </div>
+        </div>
 
-            <div class="col-md-4">
-                <a href="shelter/pets" class="glass-action-card h-100 text-decoration-none">
-                    <div class="icon-circle bg-blue-soft text-primary">
-                        <i class="bi bi-folder-plus"></i>
-                    </div>
-                    <h3 class="fw-bold text-dark mt-4">Manage Pets</h3>
-                    <p class="text-muted small">Update your animal database.</p>
+        <div class="d-flex justify-content-center">
+            <div class="glass-tabs-container">
+                <a href="shelter/pets" class="btn-glass-tab text-decoration-none">
+                    <i class="bi bi-folder-plus me-2"></i>Manage Pets
+                </a>
+                <a href="shelter/appointments" class="btn-glass-tab text-decoration-none">
+                    <i class="bi bi-calendar-week me-2"></i>Appointments
+                </a>
+                <a href="shelter/settings" class="btn-glass-tab text-decoration-none">
+                    <i class="bi bi-gear me-2"></i>Settings
                 </a>
             </div>
-
-            <div class="col-md-4">
-                <a href="shelter/appointments" class="glass-action-card h-100 text-decoration-none">
-                    <div class="icon-circle bg-purple-soft text-purple">
-                        <i class="bi bi-calendar-week"></i>
-                    </div>
-                    <h3 class="fw-bold text-dark mt-4">Appointments</h3>
-                    <p class="text-muted small">View requests & schedule.</p>
-                </a>
-            </div>
-
-            <div class="col-md-4">
-                <a href="shelter/settings" class="glass-action-card h-100 text-decoration-none">
-                    <div class="icon-circle bg-red-soft text-danger">
-                        <i class="bi bi-gear"></i>
-                    </div>
-                    <h3 class="fw-bold text-dark mt-4">Settings</h3>
-                    <p class="text-muted small">Profile, Account & Logout.</p>
-                </a>
-            </div>
-
         </div>
     }
 </div>
 
 @code {
+    private bool _isLoading = true;
     private Shelter? _myShelter;
+
+    // Stats
+    private int _petCount = 0;
+    private int _pendingAppts = 0;
+    private int _confirmedAppts = 0;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-        var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-        // Fetch Shelter
-        var allShelters = await ShelterRepo.GetAllAsync();
-        _myShelter = allShelters.FirstOrDefault(s => s.OwnerUserId == userId);
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            var allShelters = await ShelterRepo.GetAllAsync();
+            _myShelter = allShelters.FirstOrDefault(s => s.OwnerUserId == userId);
+
+            if (_myShelter != null)
+            {
+                var allPets = await PetRepo.GetAllAsync();
+                _petCount = allPets.Count(p => p.ShelterId == _myShelter.Id);
+
+                var myAppts = await ApptRepo.GetByShelterIdAsync(_myShelter.Id);
+                _pendingAppts = myAppts.Count(a => a.Status == AppointmentStatus.Pending);
+                _confirmedAppts = myAppts.Count(a => a.Status == AppointmentStatus.Confirmed);
+            }
+        }
+
+        _isLoading = false;
     }
 }
