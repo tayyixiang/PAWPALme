@@ -1,78 +1,80 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">PawPal</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+<div class="glass-navbar">
+    <div class="container d-flex justify-content-between align-items-center">
+
+        <a class="navbar-brand fw-bold text-primary" href="">
+            <i class="bi bi-paw-fill me-2"></i>PawPal
+        </a>
+
+        <div class="d-flex gap-3 align-items-center">
+            <NavLink class="nav-link-glass" href="" Match="NavLinkMatch.All">Home</NavLink>
+            <NavLink class="nav-link-glass" href="pets">Browse Pets</NavLink>
+            <NavLink class="nav-link-glass" href="shelters">Shelters</NavLink>
+
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="nav-link-glass" href="my-appointments">Appointments</NavLink>
+
+                    <AuthorizeView Roles="Shelter" Context="innerContext">
+                        <NavLink class="nav-link-glass highlight" href="shelter/dashboard">Dashboard</NavLink>
+                    </AuthorizeView>
+
+                    <form action="Account/Logout" method="post" class="d-inline">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="" />
+                        <button type="submit" class="btn-glass-icon" title="Logout">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink class="nav-link-glass highlight" href="auth">Log In</NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
     </div>
 </div>
 
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
+<style>
+    /* LOCAL STYLES FOR GLASS NAV */
+    .glass-navbar {
+        background: rgba(224, 229, 236, 0.85); /* #e0e5ec with transparency */
+        backdrop-filter: blur(12px); /* LIQUID GLASS EFFECT */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+        padding: 1rem 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+    .nav-link-glass {
+        color: #6c757d;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+    }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="pets">
-                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Browse Pets
-            </NavLink>
-        </div>
+        .nav-link-glass:hover, .nav-link-glass.active {
+            color: #0d6efd;
+            background: #e0e5ec;
+            box-shadow: inset 4px 4px 8px #bec3c9, inset -4px -4px 8px #ffffff; /* Pressed In */
+        }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="shelters">
-                <span class="bi bi-shop-window-nav-menu" aria-hidden="true"></span> Our Shelters
-            </NavLink>
-        </div>
+        .nav-link-glass.highlight {
+            color: #0d6efd;
+        }
 
-        <AuthorizeView>
-            <Authorized>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="my-appointments">
-                        <span class="bi bi-calendar-check-nav-menu" aria-hidden="true"></span> Appointments
-                    </NavLink>
-                </div>
-
-                <AuthorizeView Roles="Shelter" Context="innerContext">
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="shelter/dashboard">
-                            <span class="bi bi-speedometer2-nav-menu" aria-hidden="true"></span> Dashboard
-                        </NavLink>
-                    </div>
-                </AuthorizeView>
-
-                <div class="nav-item px-3 mt-4">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="" />
-                        <button type="submit" class="nav-link btn btn-link text-start text-danger" style="width:100%">
-                            <span class="bi bi-box-arrow-left-nav-menu" aria-hidden="true"></span> Log Out
-                        </button>
-                    </form>
-                </div>
-
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3 mt-4">
-                    <NavLink class="nav-link" href="auth">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Log In / Sign Up
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-
-    </nav>
-</div>
+    .btn-glass-icon {
+        border: none;
+        background: transparent;
+        color: #dc3545; /* Red for logout */
+        font-size: 1.2rem;
+        padding: 0 10px;
+    }
+</style>
 
 @code {
-    private bool collapseNavMenu = true;
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+    // No collapse logic needed for simple top bar
 }
