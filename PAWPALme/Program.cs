@@ -80,22 +80,18 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-// Seed Roles
+// --- SEED DATA (Execute on every startup to ensure data exists) ---
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    string[] roles = ["Admin", "Shelter", "Adopter"];
-    foreach (var r in roles)
-    {
-        if (!await roleManager.RoleExistsAsync(r))
-            await roleManager.CreateAsync(new IdentityRole(r));
-    }
+    // This will create DB, Apply Migrations, and Seed Users/Data
+    await PAWPALme.Data.SeedData.InitializeAsync(scope.ServiceProvider);
 }
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+
 
 app.Run();
 
