@@ -29,7 +29,6 @@ namespace PAWPALme.Repositories
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        // --- THE MISSING METHOD IMPLEMENTATION ---
         public async Task<IEnumerable<Pet>> GetPetsByShelterIdAsync(int shelterId)
         {
             using var context = _factory.CreateDbContext();
@@ -53,13 +52,23 @@ namespace PAWPALme.Repositories
             await context.SaveChangesAsync();
         }
 
+        // <--- CRITICAL FIX: Delete related data first --->
         public async Task DeleteAsync(int id)
         {
             using var context = _factory.CreateDbContext();
             var pet = await context.Pet.FindAsync(id);
+
             if (pet != null)
             {
+                // 1. Find all appointments for this pet
+                var appointments = context.Appointment.Where(a => a.PetId == id);
+
+                // 2. Delete them first (Manual Cascade)
+                context.Appointment.RemoveRange(appointments);
+
+                // 3. Now delete the pet
                 context.Pet.Remove(pet);
+
                 await context.SaveChangesAsync();
             }
         }
