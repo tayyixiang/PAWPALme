@@ -27,13 +27,25 @@ namespace PAWPALme.Repositories
             await context.SaveChangesAsync();
         }
 
+        public async Task DeleteAsync(int id)
+        {
+            using var context = _factory.CreateDbContext();
+            var appt = await context.Appointment.FindAsync(id);
+            if (appt != null)
+            {
+                context.Appointment.Remove(appt);
+                await context.SaveChangesAsync();
+            }
+        }
+
         public async Task<Appointment?> GetByIdAsync(int id)
         {
             using var context = _factory.CreateDbContext();
             return await context.Appointment
                 .Include(a => a.Pet)
                 .Include(a => a.Shelter)
-                .Include(a => a.AdoptionApplication) // <--- ADD THIS
+                .Include(a => a.AdoptionApplication)
+                .Include(a => a.AdopterUser) // Ensure User is loaded
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
 
@@ -42,7 +54,8 @@ namespace PAWPALme.Repositories
             using var context = _factory.CreateDbContext();
             return await context.Appointment
                 .Include(a => a.Pet)
-                .Include(a => a.AdoptionApplication) // <--- CRITICAL: Fetch Applicant Details
+                .Include(a => a.AdoptionApplication)
+                .Include(a => a.AdopterUser) // <--- CRITICAL FIX: Loads Adopter Name
                 .Where(a => a.ShelterId == shelterId)
                 .OrderByDescending(a => a.AppointmentDate)
                 .ToListAsync();

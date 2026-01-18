@@ -1,169 +1,95 @@
 ﻿@page "/my-appointments"
-@rendermode InteractiveServer
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Identity
 @using PAWPALme.Models
-@using PAWPALme.Data
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
-@attribute [Authorize]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
 @inject IAppointmentRepository ApptRepo
-@inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize]
 
-<div class="container mt-4">
-    <h3>My Appointments</h3>
+<PageTitle>My Appointments | PawPal</PageTitle>
 
-    @if (appointments == null)
-    {
-        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
-    }
-    else if (!appointments.Any())
-    {
-        <div class="alert alert-info">
-            You haven't booked any appointments yet. <a href="pets">Browse pets</a>
-        </div>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Pet</th>
-                        <th>Shelter</th>
-                        <th>Date & Time</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var appt in appointments)
-                    {
-                        <tr>
-                            <td>
-                                <div class="pet-name">@appt.Pet?.Name</div>
-                                <div class="small text-muted">@appt.Pet?.Breed</div>
-                            </td>
-                            <td>@appt.Shelter?.Name</td>
-                            <td>
-                                <div>@appt.AppointmentDate.ToShortDateString()</div>
-                                <small class="text-muted">@DateTime.Today.Add(appt.AppointmentTime).ToString("hh:mm tt")</small>
-                            </td>
-                            <td>
-                                <span class="badge @GetBadgeClass(appt.Status)">@appt.Status</span>
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(appt)">
-                                    View Details
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-</div>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h3 class="fw-bold mb-4">My Appointments</h3>
 
-@if (selectedAppointment != null)
-{
-    <div class="modal fade show modal-backdrop-custom" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Appointment Details</h5>
-                    <button type="button" class="btn-close" @onclick="CloseDetails"></button>
+            @if (_appointments == null)
+            {
+                <div class="spinner-border text-primary"></div>
+            }
+            else if (!_appointments.Any())
+            {
+                <div class="text-center py-5 text-muted glass-card">
+                    <i class="bi bi-calendar-x fs-1 opacity-50"></i>
+                    <p class="mt-3">You haven't booked any visits yet.</p>
+                    <a href="pets" class="btn btn-primary rounded-pill mt-2">Browse Pets</a>
                 </div>
-                <div class="modal-body">
-                    <div class="status-header">
-                        @if (selectedAppointment.Status == AppointmentStatus.Confirmed)
-                        {
-                            <i class="bi bi-check-circle-fill text-success status-icon"></i>
-                            <h4 class="text-success mt-2">Confirmed</h4>
-                        }
-                        else if (selectedAppointment.Status == AppointmentStatus.Cancelled)
-                        {
-                            <i class="bi bi-x-circle-fill text-danger status-icon"></i>
-                            <h4 class="text-danger mt-2">Cancelled</h4>
-                            <p class="text-muted small">This appointment was cancelled.</p>
-                        }
-                        else if (selectedAppointment.Status == AppointmentStatus.Denied)
-                        {
-                            // NEW: Specific UI for Denied
-                            <i class="bi bi-slash-circle-fill text-dark status-icon"></i>
-                            <h4 class="text-dark mt-2">Request Denied</h4>
-                            <p class="text-muted small">The shelter could not accept this request.</p>
-                        }
-                        else
-                        {
-                            <i class="bi bi-clock-fill text-warning status-icon"></i>
-                            <h4 class="text-warning mt-2">Pending Review</h4>
-                        }
-                    </div>
+            }
+            else
+            {
+                @foreach (var appt in _appointments)
+                {
+                    <div class="glass-card mb-3 p-4 border-start border-5 @GetStatusBorder(appt.Status)">
+                        <div class="d-flex justify-content-between align-items-center">
 
-                    @if (!string.IsNullOrEmpty(selectedAppointment.ShelterRemarks))
-                    {
-                        <div class="alert alert-primary mb-3">
-                            <strong><i class="bi bi-info-circle-fill"></i> Note from Shelter:</strong>
-                            <div class="mt-1">@selectedAppointment.ShelterRemarks</div>
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="@(appt.Pet?.ImageUrl ?? "/images/pet-placeholder.png")"
+                                     class="rounded-circle" width="60" height="60" style="object-fit:cover" />
+                                <div>
+                                    <h5 class="fw-bold mb-1">@appt.Pet?.Name</h5>
+                                    <div class="text-muted small">
+                                        <i class="bi bi-shop me-1"></i> @(appt.Shelter?.Name ?? "Shelter")
+                                    </div>
+                                    <div class="text-muted small">
+                                        <i class="bi bi-calendar-event me-1"></i> @appt.AppointmentDate.ToString("D") at @appt.AppointmentTime.ToString()
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-end">
+                                <span class="badge rounded-pill px-3 py-2 @GetStatusBadge(appt.Status)">
+                                    @appt.Status
+                                </span>
+                            </div>
                         </div>
-                    }
-
-                    <ul class="list-group list-group-flush mb-3">
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span class="info-label">Pet</span>
-                            <span>@selectedAppointment.Pet?.Name</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span class="info-label">Shelter</span>
-                            <span>@selectedAppointment.Shelter?.Name</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span class="info-label">Date</span>
-                            <span>@selectedAppointment.AppointmentDate.ToShortDateString()</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span class="info-label">Time</span>
-                            <span>@DateTime.Today.Add(selectedAppointment.AppointmentTime).ToString("hh:mm tt")</span>
-                        </li>
-                        <li class="list-group-item">
-                            <span class="info-label d-block mb-1">Location</span>
-                            <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(selectedAppointment.Shelter?.Address ?? "")}")" target="_blank">
-                                <i class="bi bi-geo-alt-fill text-danger"></i> @(selectedAppointment.Shelter?.Address ?? "Address not available")
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary w-100" @onclick="CloseDetails">Close</button>
-                </div>
-            </div>
+                    </div>
+                }
+            }
         </div>
     </div>
-}
+</div>
 
 @code {
-    private IEnumerable<Appointment>? appointments;
-    private Appointment? selectedAppointment;
+    private IEnumerable<Appointment>? _appointments;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(authState.User);
-        if (user != null) appointments = await ApptRepo.GetByUserIdAsync(user.Id);
+        var userId = authState.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+            _appointments = await ApptRepo.GetByUserIdAsync(userId);
+        }
     }
 
-    private void ViewDetails(Appointment appt) => selectedAppointment = appt;
-    private void CloseDetails() => selectedAppointment = null;
+    private string GetStatusBorder(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Confirmed => "border-success",
+        AppointmentStatus.Pending => "border-warning",
+        AppointmentStatus.Denied => "border-danger",
+        AppointmentStatus.Cancelled => "border-secondary",
+        _ => "border-primary"
+    };
 
-    // FIX: Added badge class for Denied
-    private string GetBadgeClass(AppointmentStatus status) => status switch
+    private string GetStatusBadge(AppointmentStatus status) => status switch
     {
         AppointmentStatus.Confirmed => "bg-success",
-        AppointmentStatus.Cancelled => "bg-danger",
-        AppointmentStatus.Denied => "bg-dark", // Shows as Dark Grey/Black
         AppointmentStatus.Pending => "bg-warning text-dark",
-        _ => "bg-secondary"
+        AppointmentStatus.Denied => "bg-danger",
+        AppointmentStatus.Cancelled => "bg-secondary",
+        _ => "bg-primary"
     };
 }

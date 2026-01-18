@@ -12,13 +12,12 @@
 <div class="container py-4">
     <div class="text-center mb-5">
         <h3 class="fw-bold">Manage Appointments</h3>
-        <p class="text-muted">Review incoming requests and upcoming visits.</p>
     </div>
 
     <div class="d-flex justify-content-center mb-5">
         <div class="glass-tabs-container">
             <button class="btn-glass-tab @(_activeTab == "requests" ? "active" : "")"
-                    @onclick='() => _activeTab = "requests"'>
+                    @onclick='() => SwitchTab("requests")'>
                 Incoming Requests
                 @if (_pending.Any())
                 {
@@ -26,20 +25,22 @@
                 }
             </button>
             <button class="btn-glass-tab @(_activeTab == "schedule" ? "active" : "")"
-                    @onclick='() => _activeTab = "schedule"'>
+                    @onclick='() => SwitchTab("schedule")'>
                 Scheduled Visits
             </button>
         </div>
     </div>
 
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger text-center">@_errorMessage</div>
+    }
+
     @if (_activeTab == "requests")
     {
         @if (!_pending.Any())
         {
-            <div class="text-center text-muted py-5">
-                <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
-                No pending requests at the moment.
-            </div>
+            <div class="text-center text-muted py-5">No pending requests.</div>
         }
         else
         {
@@ -48,29 +49,43 @@
                     @foreach (var appt in _pending)
                     {
                         <div class="glass-card mb-3 p-4">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
                                 <div>
                                     <h5 class="fw-bold mb-1 text-primary">Request for @appt.Pet?.Name</h5>
-                                    <div class="d-flex align-items-center gap-2 text-muted small">
-                                        <i class="bi bi-calendar"></i> @appt.AppointmentDate.ToString("D")
-                                        <i class="bi bi-clock ms-2"></i> @appt.AppointmentTime.ToString()
+                                    <div class="text-muted small">
+                                        Adopter: <strong>@(appt.AdopterUser?.FullName ?? "Unknown User")</strong>
                                     </div>
-                                    @* FIX: Changed Comments to Notes *@
                                     @if (!string.IsNullOrEmpty(appt.Notes))
                                     {
-                                        <p class="mt-2 mb-0 text-dark fst-italic">"@appt.Notes"</p>
+                                        <p class="mt-2 mb-0 fst-italic text-muted">"@appt.Notes"</p>
                                     }
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-success rounded-pill px-4 shadow-sm"
-                                            @onclick="() => UpdateStatus(appt, AppointmentStatus.Confirmed)">
-                                        <i class="bi bi-check-lg me-1"></i> Accept
-                                    </button>
-                                    <button class="btn btn-outline-danger rounded-pill px-4"
-                                            @onclick="() => UpdateStatus(appt, AppointmentStatus.Denied)">
-                                        Deny
-                                    </button>
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            </div>
+
+                            <div class="bg-white rounded-3 p-3 mb-3 border">
+                                <label class="small fw-bold text-muted mb-2">Set Appointment Time:</label>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <input type="date" class="form-control form-control-sm" @bind="appt.AppointmentDate" />
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="time" class="form-control form-control-sm"
+                                               value="@appt.AppointmentTime.ToString(@"hh\:mm")"
+                                               @onchange="@(e => UpdateTime(appt, e.Value))" />
+                                    </div>
                                 </div>
+                            </div>
+
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button class="btn btn-outline-danger btn-sm rounded-pill px-4"
+                                        @onclick="() => UpdateStatus(appt, AppointmentStatus.Denied)">
+                                    Deny
+                                </button>
+                                <button class="btn btn-success btn-sm rounded-pill px-4"
+                                        @onclick="() => UpdateStatus(appt, AppointmentStatus.Confirmed)">
+                                    Confirm & Schedule
+                                </button>
                             </div>
                         </div>
                     }
@@ -83,10 +98,7 @@
     {
         @if (!_scheduled.Any())
         {
-            <div class="text-center text-muted py-5">
-                <i class="bi bi-calendar-x fs-1 d-block mb-3 opacity-50"></i>
-                No upcoming visits scheduled.
-            </div>
+            <div class="text-center text-muted py-5">No upcoming visits.</div>
         }
         else
         {
@@ -95,19 +107,54 @@
                     @foreach (var appt in _scheduled)
                     {
                         <div class="glass-card mb-3 p-4 border-start border-5 border-success">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h5 class="fw-bold mb-1">Visit for @appt.Pet?.Name</h5>
-                                    <div class="d-flex align-items-center gap-2 text-muted small">
-                                        <i class="bi bi-calendar-check text-success"></i> @appt.AppointmentDate.ToString("D") at @appt.AppointmentTime.ToString()
+
+                            @if (_editingId == appt.Id)
+                            {
+                                <h5 class="fw-bold mb-3 text-primary">Edit Appointment</h5>
+                                <div class="mb-3">
+                                    <label class="small fw-bold text-muted">Date</label>
+                                    <input type="date" class="form-control" @bind="appt.AppointmentDate" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="small fw-bold text-muted">Time</label>
+                                    <input type="time" class="form-control"
+                                           value="@appt.AppointmentTime.ToString(@"hh\:mm")"
+                                           @onchange="@(e => UpdateTime(appt, e.Value))" />
+                                </div>
+                                <div class="d-flex justify-content-end gap-2 mt-3">
+                                    <button class="btn btn-secondary btn-sm rounded-pill" @onclick="() => _editingId = 0">Cancel</button>
+                                    <button class="btn btn-primary btn-sm rounded-pill" @onclick="() => SaveEdit(appt)">Save Changes</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="fw-bold mb-1">Visit for @appt.Pet?.Name</h5>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-calendar-check text-success"></i>
+                                            @appt.AppointmentDate.ToString("D") at @appt.AppointmentTime.ToString(@"hh\:mm")
+                                        </div>
+                                        <div class="mt-1 small">
+                                            With: <strong>@(appt.AdopterUser?.FullName ?? "Unknown User")</strong>
+                                        </div>
                                     </div>
-                                    <div class="mt-2 small text-muted">
-                                        @* FIX: Changed Adopter to AdopterUser *@
-                                        Adopter: <span class="fw-bold text-dark">@(appt.AdopterUser?.FullName ?? "Unknown")</span>
+
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button class="btn btn-outline-primary btn-sm rounded-circle"
+                                                title="Edit Details"
+                                                @onclick="() => _editingId = appt.Id">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+
+                                        <button class="btn btn-outline-danger btn-sm rounded-circle"
+                                                title="Cancel Appointment"
+                                                @onclick="() => DeleteAppointment(appt.Id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </div>
                                 </div>
-                                <span class="badge bg-success rounded-pill px-3 py-2">Confirmed</span>
-                            </div>
+                            }
                         </div>
                     }
                 </div>
@@ -118,6 +165,8 @@
 
 @code {
     private string _activeTab = "requests";
+    private int _editingId = 0;
+    private string _errorMessage = "";
     private IEnumerable<Appointment> _pending = new List<Appointment>();
     private IEnumerable<Appointment> _scheduled = new List<Appointment>();
 
@@ -126,27 +175,75 @@
         await LoadData();
     }
 
+    private void SwitchTab(string tab)
+    {
+        _activeTab = tab;
+        _editingId = 0; // Reset editing when switching tabs
+        _errorMessage = "";
+    }
+
     private async Task LoadData()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-
-        var shelters = await ShelterRepo.GetAllAsync();
-        var myShelter = shelters.FirstOrDefault(s => s.OwnerUserId == userId);
-
-        if (myShelter != null)
+        try
         {
-            var all = await ApptRepo.GetByShelterIdAsync(myShelter.Id);
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-            _pending = all.Where(a => a.Status == AppointmentStatus.Pending).OrderBy(a => a.AppointmentDate).ToList();
-            _scheduled = all.Where(a => a.Status == AppointmentStatus.Confirmed).OrderBy(a => a.AppointmentDate).ToList();
+            var shelters = await ShelterRepo.GetAllAsync();
+            var myShelter = shelters.FirstOrDefault(s => s.OwnerUserId == userId);
+
+            if (myShelter != null)
+            {
+                var all = await ApptRepo.GetByShelterIdAsync(myShelter.Id);
+                _pending = all.Where(a => a.Status == AppointmentStatus.Pending).OrderBy(a => a.AppointmentDate).ToList();
+                _scheduled = all.Where(a => a.Status == AppointmentStatus.Confirmed).OrderBy(a => a.AppointmentDate).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Error loading data. Please refresh.";
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    // Helper to safely parse time
+    private void UpdateTime(Appointment appt, object? value)
+    {
+        if (TimeSpan.TryParse(value?.ToString(), out var time))
+        {
+            appt.AppointmentTime = time;
         }
     }
 
     private async Task UpdateStatus(Appointment appt, AppointmentStatus status)
     {
-        appt.Status = status;
-        await ApptRepo.UpdateAsync(appt);
-        await LoadData();
+        try
+        {
+            appt.Status = status;
+            await ApptRepo.UpdateAsync(appt);
+            await LoadData();
+        }
+        catch { _errorMessage = "Failed to update status."; }
+    }
+
+    private async Task SaveEdit(Appointment appt)
+    {
+        try
+        {
+            await ApptRepo.UpdateAsync(appt);
+            _editingId = 0;
+            await LoadData();
+        }
+        catch { _errorMessage = "Failed to save changes."; }
+    }
+
+    private async Task DeleteAppointment(int id)
+    {
+        try
+        {
+            await ApptRepo.DeleteAsync(id);
+            await LoadData();
+        }
+        catch { _errorMessage = "Failed to delete appointment."; }
     }
 }
