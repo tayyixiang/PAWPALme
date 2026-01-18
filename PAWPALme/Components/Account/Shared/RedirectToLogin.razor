@@ -1,8 +1,14 @@
-﻿@inject NavigationManager NavigationManager
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
 
 @code {
     protected override void OnInitialized()
     {
-        NavigationManager.NavigateTo($"/auth?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}", true);
+        // 1. Capture the page they were trying to visit (e.g., book-appointment/5)
+        var returnUrl = Uri.EscapeDataString(NavigationManager.Uri);
+
+        // 2. Send them to your custom Auth Hub with that Return URL
+        // We add 'forceLoad: true' to ensure a complete page refresh
+        NavigationManager.NavigateTo($"auth?mode=login&returnUrl={returnUrl}", forceLoad: true);
     }
 }

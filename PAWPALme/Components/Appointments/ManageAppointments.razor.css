@@ -1,23 +1,48 @@
-﻿/* Styling for the modal backdrop and cards */
-.modal-backdrop-custom {
-    background-color: rgba(0, 0, 0, 0.5);
-    display: block;
+﻿/* CONTAINER FOR TABS */
+.glass-tabs-container {
+    background: #e0e5ec;
+    padding: 6px;
+    border-radius: 50px;
+    display: inline-flex;
+    position: relative;
+    /* Neumorphic Inset */
+    box-shadow: inset 6px 6px 10px #bec3c9, inset -6px -6px 10px #ffffff;
 }
 
-.table-card {
-    background-color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    overflow: hidden;
+/* THE BUTTONS */
+.btn-glass-tab {
+    padding: 10px 30px;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    background: transparent;
+    color: #8892a0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 1;
 }
 
-.applicant-name {
-    font-weight: bold;
-    color: #212529;
+    .btn-glass-tab:hover {
+        color: #0d6efd;
+    }
+
+    /* ACTIVE STATE (Popped Out) */
+    .btn-glass-tab.active {
+        color: #0d6efd;
+        background: #e0e5ec;
+        box-shadow: 6px 6px 12px #bec3c9, -6px -6px 12px #ffffff;
+    }
+
+/* CARD STYLING */
+.glass-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 9px 9px 16px rgb(163,177,198,0.5), -9px -9px 16px rgba(255,255,255, 0.5);
+    border: 1px solid rgba(255,255,255,0.4);
+    transition: transform 0.2s;
 }
 
-.btn-action-group {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-}
+    .glass-card:hover {
+        transform: translateY(-3px);
+    }

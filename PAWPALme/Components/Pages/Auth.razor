@@ -170,22 +170,25 @@
 </div>
 
 @code {
-    // --- QUERY PARAMETERS (This makes the buttons work!) ---
+    // --- QUERY PARAMETERS ---
     [SupplyParameterFromQuery]
     public string? Mode { get; set; } // "login" or "register"
 
     [SupplyParameterFromQuery]
     public string? Role { get; set; } // "adopter" or "shelter"
 
+    // FIX: ADDED THIS PARAMETER TO CATCH THE RETURN URL
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
     private string? ErrorMessage;
 
     protected override void OnInitialized()
     {
-        // Default to login if no mode specified
         if (string.IsNullOrEmpty(Mode)) Mode = "login";
     }
 
-    // --- DISTINCT MODELS FOR EACH FORM ---
+    // --- DISTINCT MODELS ---
     [SupplyParameterFromForm(FormName = "login-form")]
     public LoginInput LoginModel { get; set; } = new();
 
@@ -199,7 +202,6 @@
 
     public async Task LoginUser()
     {
-        // 1. Validate Credentials
         var user = await UserManager.FindByEmailAsync(LoginModel.Email);
         if (user == null)
         {
@@ -211,9 +213,15 @@
 
         if (result.Succeeded)
         {
-            // 2. Check Role & Redirect
-            var roles = await UserManager.GetRolesAsync(user);
+            // FIX: CHECK FOR RETURN URL FIRST
+            if (!string.IsNullOrEmpty(ReturnUrl))
+            {
+                Nav.NavigateTo(ReturnUrl, forceLoad: true);
+                return;
+            }
 
+            // Fallback: Check Role & Redirect to Dashboard/Home
+            var roles = await UserManager.GetRolesAsync(user);
             if (roles.Contains("Shelter"))
             {
                 Nav.NavigateTo("/shelter/dashboard", forceLoad: true);

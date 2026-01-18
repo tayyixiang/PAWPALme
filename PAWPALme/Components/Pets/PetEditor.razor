@@ -8,6 +8,9 @@
 @using PAWPALme.Data
 @using Microsoft.AspNetCore.Identity
 @attribute [Authorize(Roles = "Shelter")]
+@* FIX 1: Enable Interactive Mode so InputFile works *@
+@rendermode InteractiveServer
+
 @inject IPetRepository PetRepo
 @inject IShelterRepository ShelterRepo
 @inject IFileService FileService
@@ -26,7 +29,8 @@
                 </div>
 
                 <div class="card-body p-4">
-                    <EditForm Model="PetModel" OnValidSubmit="SavePet">
+                    @* FIX 2: Added FormName to identify this form *@
+                    <EditForm Model="PetModel" OnValidSubmit="SavePet" FormName="pet-editor">
                         <DataAnnotationsValidator />
                         <ValidationSummary class="text-danger mb-3" />
 
@@ -51,6 +55,7 @@
 
                                     <InputFile OnChange="HandleFileSelected" class="position-absolute w-100 h-100 top-0 start-0 opacity-0" accept=".jpg,.png,.jpeg" />
                                 </div>
+
                                 @if (isUploading)
                                 {
                                     <div class="progress mt-2" style="height: 5px;">
@@ -73,6 +78,9 @@
                                             <option value="">-- Select --</option>
                                             <option value="Dog">Dog</option>
                                             <option value="Cat">Cat</option>
+                                            <option value="Rabbit">Rabbit</option>
+                                            <option value="Bird">Bird</option>
+                                            <option value="Other">Other</option>
                                         </InputSelect>
                                     </div>
                                     <div class="col-6 mb-3">
@@ -132,45 +140,52 @@
 
 @code {
     [Parameter] public int? Id { get; set; }
+
+    // FIX 3: Added [SupplyParameterFromForm] for robust binding
+    [SupplyParameterFromForm]
     private Pet PetModel { get; set; } = new();
+
     private bool isUploading = false;
     private int? userShelterId;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(authState.User);
-        userShelterId = user?.ShelterId;
-
-        if (userShelterId == null)
+        // Only load data if we are not already processing a form submission
+        if (PetModel.Id == 0 && Id.HasValue)
         {
-            Nav.NavigateTo("/shelter/register");
-            return;
-        }
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            userShelterId = user?.ShelterId;
 
-        if (Id.HasValue)
-        {
-            var existingPet = await PetRepo.GetByIdAsync(Id.Value);
-            if (existingPet != null)
+            if (userShelterId == null)
             {
-                if (existingPet.ShelterId != userShelterId)
-                {
-                    Nav.NavigateTo("/shelter/pets");
-                    return;
-                }
-                PetModel = existingPet;
+                Nav.NavigateTo("/shelter/register");
+                return;
             }
-        }
-        else
-        {
-            // Default values
-            PetModel.Species = "Dog";
-            PetModel.Size = "Medium";
-            PetModel.Status = PetStatus.Available;
+
+            if (Id.HasValue)
+            {
+                var existingPet = await PetRepo.GetByIdAsync(Id.Value);
+                if (existingPet != null)
+                {
+                    if (existingPet.ShelterId != userShelterId)
+                    {
+                        Nav.NavigateTo("/shelter/pets");
+                        return;
+                    }
+                    PetModel = existingPet;
+                }
+            }
+            else
+            {
+                // Default values for new pet
+                PetModel.Species = "Dog";
+                PetModel.Size = "Medium";
+                PetModel.Status = PetStatus.Available;
+            }
         }
     }
 
-    // Helper to handle the Checkbox -> Enum conversion
     private void ToggleAdoptedStatus(ChangeEventArgs e)
     {
         bool isAdopted = (bool)(e.Value ?? false);
@@ -182,6 +197,7 @@
         isUploading = true;
         try
         {
+            // Ensure FileService is working (mock or real)
             var path = await FileService.UploadFileAsync(e.File, "pets");
             PetModel.ImageUrl = path;
         }
@@ -194,6 +210,14 @@
 
     private async Task SavePet()
     {
+        // Re-fetch shelter ID if null (in case of connection drop/reconnect)
+        if (userShelterId == null)
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            userShelterId = user?.ShelterId;
+        }
+
         if (userShelterId == null) return;
 
         PetModel.ShelterId = userShelterId.Value;

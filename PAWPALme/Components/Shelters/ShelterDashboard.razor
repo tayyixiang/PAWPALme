@@ -1,78 +1,79 @@
 ﻿@page "/shelter/dashboard"
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Identity
-@using PAWPALme.Data
-@attribute [Authorize(Roles = "Shelter")]
+@using System.Security.Claims
+@using PAWPALme.Models
+@using PAWPALme.Repositories
 @inject AuthenticationStateProvider AuthStateProvider
-@inject UserManager<ApplicationUser> UserManager
+@inject IShelterRepository ShelterRepo
+@inject NavigationManager Nav
+@attribute [Authorize(Roles = "Shelter")]
 
-<PageTitle>Shelter Dashboard</PageTitle>
+<PageTitle>Shelter Dashboard | PawPal</PageTitle>
 
-<div class="container mt-4">
-    <div class="row mb-4 align-items-center">
-        <div class="col">
-            <h1 class="display-6">Shelter Dashboard</h1>
-            <p class="text-muted">Welcome back, <strong>@username</strong></p>
+<div class="container py-5">
+
+    @if (_myShelter == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
         </div>
-        <div class="col-auto">
-            <a href="shelter/edit-profile" class="btn btn-outline-primary">
-                <i class="bi bi-pencil-square"></i> Edit Profile
-            </a>
+    }
+    else
+    {
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold text-dark mb-2">
+                @_myShelter.Name
+            </h1>
+            <p class="text-muted">Command Center</p>
         </div>
-    </div>
 
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm dashboard-card card-pets">
-                <div class="card-body text-center">
-                    <div class="dashboard-icon text-pets">
-                        <i class="bi bi-github"></i>
+        <div class="row g-4 justify-content-center">
+
+            <div class="col-md-4">
+                <a href="shelter/pets" class="glass-action-card h-100 text-decoration-none">
+                    <div class="icon-circle bg-blue-soft text-primary">
+                        <i class="bi bi-folder-plus"></i>
                     </div>
-                    <h3 class="card-title">Manage Pets</h3>
-                    <p class="card-text">Add new pets, update profiles, or remove adopted pets.</p>
-                    <a href="shelter/pets" class="btn btn-primary w-100">Go to Pets</a>
-                </div>
+                    <h3 class="fw-bold text-dark mt-4">Manage Pets</h3>
+                    <p class="text-muted small">Update your animal database.</p>
+                </a>
             </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="card shadow-sm dashboard-card card-appointments">
-                <div class="card-body text-center">
-                    <div class="dashboard-icon text-appointments">
-                        <i class="bi bi-calendar-check"></i>
+            <div class="col-md-4">
+                <a href="shelter/appointments" class="glass-action-card h-100 text-decoration-none">
+                    <div class="icon-circle bg-purple-soft text-purple">
+                        <i class="bi bi-calendar-week"></i>
                     </div>
-                    <h3 class="card-title">Appointments</h3>
-                    <p class="card-text">Review and approve adoption requests from users.</p>
-                    <a href="shelter/appointments" class="btn btn-success w-100">View Requests</a>
-                </div>
+                    <h3 class="fw-bold text-dark mt-4">Appointments</h3>
+                    <p class="text-muted small">View requests & schedule.</p>
+                </a>
             </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="card shadow-sm dashboard-card card-profile">
-                <div class="card-body text-center">
-                    <div class="dashboard-icon text-profile">
-                        <i class="bi bi-shop"></i>
+            <div class="col-md-4">
+                <a href="shelter/settings" class="glass-action-card h-100 text-decoration-none">
+                    <div class="icon-circle bg-red-soft text-danger">
+                        <i class="bi bi-gear"></i>
                     </div>
-                    <h3 class="card-title">My Shelter</h3>
-                    <p class="card-text">Update your logo, description, and location details.</p>
-                    <a href="shelter/edit-profile" class="btn btn-info text-white w-100">Edit Profile</a>
-                </div>
+                    <h3 class="fw-bold text-dark mt-4">Settings</h3>
+                    <p class="text-muted small">Profile, Account & Logout.</p>
+                </a>
             </div>
+
         </div>
-    </div>
+    }
 </div>
 
 @code {
-    private string username = "Partner";
+    private Shelter? _myShelter;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-        if (user.Identity?.IsAuthenticated ?? false)
-        {
-            username = user.Identity.Name ?? "Partner";
-        }
+        var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        // Fetch Shelter
+        var allShelters = await ShelterRepo.GetAllAsync();
+        _myShelter = allShelters.FirstOrDefault(s => s.OwnerUserId == userId);
     }
 }

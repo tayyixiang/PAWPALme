@@ -1,29 +1,86 @@
-﻿.profile-card {
-    border: none;
+﻿/* --- GLASS CARD CONTAINER --- */
+.glass-card {
+    background: #e0e5ec;
+    border-radius: 30px;
+    box-shadow: 20px 20px 60px #bec3c9, -20px -20px 60px #ffffff;
+    border: 1px solid rgba(255,255,255,0.4);
+    transition: all 0.3s ease;
 }
 
-.card-header-custom {
-    padding: 1rem 1.5rem;
+.border-danger-subtle {
+    border-left: 5px solid #dc3545 !important;
 }
 
-.logo-preview-container {
-    height: 200px;
-    width: 100%;
-    overflow: hidden;
-    background-color: #f8f9fa; /* bg-light */
-    border-radius: 0.25rem;
+/* --- ICONS --- */
+.icon-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1rem;
-    border: 1px dashed #ced4da; /* Visual cue for "upload area" */
+    font-size: 1.5rem;
+    box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.8);
 }
 
-.logo-image {
-    max-height: 100%;
-    object-fit: contain;
+.bg-blue-soft {
+    background: rgba(13, 110, 253, 0.1);
 }
 
-.upload-label {
-    cursor: pointer;
+.bg-red-soft {
+    background: rgba(220, 53, 69, 0.1);
 }
+
+/* --- INPUTS --- */
+.input-group-custom {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #a3b1c6;
+    font-size: 1.1rem;
+    z-index: 5;
+}
+
+/* Force Neumorphic Input Style */
+.form-input {
+    width: 100%;
+    background: #e0e5ec !important;
+    border: none !important;
+    border-radius: 50px !important;
+    padding: 15px 20px 15px 50px !important; /* Left padding for icon */
+    box-shadow: inset 6px 6px 10px #bec3c9, inset -6px -6px 10px #ffffff !important;
+    color: #4d4d4d !important;
+    outline: none !important;
+    transition: all 0.2s ease;
+}
+
+    .form-input:focus {
+        box-shadow: inset 4px 4px 6px #bec3c9, inset -4px -4px 6px #ffffff !important;
+        color: #0d6efd !important;
+    }
+
+/* --- LIQUID BUTTON --- */
+.liquid-btn {
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(145deg, #0d6efd, #0b5ed7);
+    color: white;
+    font-weight: 700;
+    padding: 12px 30px;
+    box-shadow: 6px 6px 12px #bec3c9, -6px -6px 12px #ffffff;
+    transition: transform 0.2s ease;
+}
+
+    .liquid-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 8px 8px 16px #bec3c9, -8px -8px 16px #ffffff;
+    }
+
+    .liquid-btn:active {
+        transform: translateY(1px);
+    }

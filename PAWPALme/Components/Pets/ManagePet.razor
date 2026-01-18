@@ -1,135 +1,75 @@
 ﻿@page "/shelter/pets"
-@using Microsoft.AspNetCore.Authorization
 @using PAWPALme.Models
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
-@using PAWPALme.Data
-@using Microsoft.AspNetCore.Identity
-@using Microsoft.JSInterop
-@attribute [Authorize(Roles = "Shelter")]
-@inject IPetRepository PetRepo
-@inject UserManager<ApplicationUser> UserManager
+@using System.Security.Claims
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IPetRepository PetRepo
+@inject IShelterRepository ShelterRepo
 @inject NavigationManager Nav
-@inject IJSRuntime JS
+@attribute [Authorize(Roles = "Shelter")]
 
-<PageTitle>Manage Pets</PageTitle>
+<PageTitle>Manage Pets | PawPal</PageTitle>
 
-<div class="container mt-4">
+<div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-1">Manage Pets</h2>
-            <p class="text-muted mb-0">List, edit, or remove pets from your shelter.</p>
-        </div>
-        <a href="shelter/pets/add" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i> Add New Pet
+        <h3><i class="bi bi-folder-plus text-primary me-2"></i>My Database</h3>
+        <a href="shelter/pets/add" class="btn btn-primary rounded-pill">
+            <i class="bi bi-plus-lg me-1"></i> Add New Pet
         </a>
     </div>
 
-    @if (isLoading)
+    @if (_myPets == null)
     {
-        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+        <div class="text-center">Loading...</div>
     }
-    else if (!myPets.Any())
+    else if (!_myPets.Any())
     {
-        <div class="alert alert-info text-center p-5">
-            <h4>No pets listed yet!</h4>
-            <p>Start by adding your first adoptable pet.</p>
-            <a href="shelter/pets/add" class="btn btn-primary mt-2">Add Pet</a>
-        </div>
+        <div class="alert alert-info">You haven't added any pets yet.</div>
     }
     else
     {
-        <div class="manage-container">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width: 80px;">Image</th>
-                        <th>Name</th>
-                        <th>Breed</th>
-                        <th>Status</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var pet in myPets)
-                    {
-                        <tr>
-                            <td>
-                                @if (!string.IsNullOrEmpty(pet.ImageUrl))
-                                {
-                                    <img src="@pet.ImageUrl" class="table-img" />
-                                }
-                                else
-                                {
-                                    <div class="table-img bg-light d-flex align-items-center justify-content-center text-muted">
-                                        <i class="bi bi-camera"></i>
-                                    </div>
-                                }
-                            </td>
-                            <td class="fw-bold">@pet.Name</td>
-                            <td class="text-muted">@pet.Breed</td>
-                            <td>
-                                @if (pet.Status == PetStatus.Adopted)
-                                {
-                                    <span class="badge bg-success">Adopted</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-warning text-dark">Available</span>
-                                }
-                            </td>
-                            <td class="text-end">
-                                <a href="shelter/pets/edit/@pet.Id" class="btn btn-outline-primary btn-sm action-btn me-1" title="Edit">
-                                    <i class="bi bi-pencil-fill"></i>
-                                </a>
-                                <button class="btn btn-outline-danger btn-sm action-btn" @onclick="() => ConfirmDelete(pet.Id)" title="Delete">
-                                    <i class="bi bi-trash-fill"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <div class="row g-3">
+            @foreach (var pet in _myPets)
+            {
+                <div class="col-md-6">
+                    <div class="card p-3 shadow-sm border-0 rounded-4">
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="@(pet.ImageUrl ?? "/images/pet-placeholder.png")"
+                                 class="rounded-3" width="80" height="80" style="object-fit:cover" />
+                            <div>
+                                <h5 class="fw-bold mb-1">@pet.Name</h5>
+                                <span class="badge @(pet.Status == PetStatus.Available ? "bg-success" : "bg-secondary")">
+                                    @pet.Status
+                                </span>
+                            </div>
+                            <div class="ms-auto">
+                                <a href="shelter/pets/edit/@pet.Id" class="btn btn-sm btn-outline-primary rounded-pill">Edit</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     }
 </div>
 
 @code {
-    private List<Pet> myPets = new();
-    private bool isLoading = true;
-    private int? shelterId;
+    private IEnumerable<Pet>? _myPets;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = await UserManager.GetUserAsync(authState.User);
+        var user = authState.User;
+        var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-        if (user?.ShelterId != null)
+        var shelters = await ShelterRepo.GetAllAsync();
+        var myShelter = shelters.FirstOrDefault(s => s.OwnerUserId == userId);
+
+        if (myShelter != null)
         {
-            shelterId = user.ShelterId.Value;
-            await LoadPets();
-        }
-        isLoading = false;
-    }
-
-    private async Task LoadPets()
-    {
-        if (shelterId.HasValue)
-        {
-            var pets = await PetRepo.GetPetsByShelterIdAsync(shelterId.Value);
-            myPets = pets.ToList();
-        }
-    }
-
-    private async Task ConfirmDelete(int petId)
-    {
-        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this pet?");
-
-        if (confirmed)
-        {
-            await PetRepo.DeleteAsync(petId);
-            await LoadPets();
+            var allPets = await PetRepo.GetAllAsync();
+            _myPets = allPets.Where(p => p.ShelterId == myShelter.Id);
         }
     }
 }
