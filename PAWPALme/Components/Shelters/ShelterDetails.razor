@@ -5,101 +5,54 @@
 @inject IPetRepository PetRepo
 @inject NavigationManager Nav
 
-<PageTitle>@(shelter?.Name ?? "Shelter Details")</PageTitle>
+<PageTitle>@(_shelter?.Name ?? "Shelter Details")</PageTitle>
 
-<div class="container mt-5">
-    @if (shelter == null)
+<div class="container py-5">
+    @if (_shelter == null)
     {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary"></div>
-        </div>
+        <div class="text-center"><div class="spinner-border text-primary"></div></div>
     }
     else
     {
-        @* --- SHELTER INFO HEADER --- *@
-        <div class="card shadow-sm shelter-header-card mb-5">
-            <div class="card-body p-5">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h1 class="display-4 fw-bold text-primary">@shelter.Name</h1>
+        <div class="glass-card p-5 mb-5 text-center">
+            <div class="d-inline-block bg-primary text-white rounded-circle p-4 mb-3 fs-1 shadow-sm">
+                <i class="bi bi-shop-window"></i>
+            </div>
+            <h1 class="fw-bold mb-2">@_shelter.Name</h1>
+            <p class="text-muted mb-4"><i class="bi bi-geo-alt me-1"></i> @_shelter.Address</p>
 
-                        <p class="lead">
-                            <i class="bi bi-geo-alt-fill text-danger me-2"></i>
-                            <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(shelter.Address)}")"
-                               target="_blank" class="address-link">
-                                @shelter.Address
-                            </a>
-                        </p>
-
-                        <p class="fs-5">
-                            <i class="bi bi-telephone-fill text-success me-2"></i> @shelter.Phone
-                        </p>
-
-                        <hr />
-
-                        <p class="text-muted">
-                            @(string.IsNullOrEmpty(shelter.Description) ? "No description provided." : shelter.Description)
-                        </p>
-                    </div>
-
-                    <div class="col-md-4 text-center">
-                        @if (!string.IsNullOrEmpty(shelter.ImageUrl))
-                        {
-                            <img src="@shelter.ImageUrl" class="img-fluid rounded shadow shelter-logo" alt="@shelter.Name Logo" />
-                        }
-                        else
-                        {
-                            <div class="p-5 bg-light rounded text-muted">
-                                <i class="bi bi-building fs-1"></i>
-                                <p class="mt-2">No Logo Available</p>
-                            </div>
-                        }
-                    </div>
-                </div>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="tel:@_shelter.Phone" class="btn btn-outline-primary rounded-pill px-4">
+                    <i class="bi bi-telephone me-2"></i> Call Us
+                </a>
             </div>
         </div>
 
-        @* --- PETS LIST --- *@
-        <h3 class="fw-bold mb-4">Pets Available for Adoption</h3>
+        <h3 class="fw-bold mb-4">Our Pets</h3>
 
-        @if (pets == null)
+        @if (!_pets.Any())
         {
-            <div class="text-center py-4">
-                <div class="spinner-border text-secondary"></div>
+            <div class="text-muted text-center py-5">
+                No pets available for adoption right now.
             </div>
-        }
-        else if (!pets.Any())
-        {
-            <div class="alert alert-secondary">No pets available right now.</div>
         }
         else
         {
             <div class="row g-4">
-                @foreach (var pet in pets)
+                @foreach (var pet in _pets)
                 {
-                    <div class="col-md-3">
-                        <div class="card h-100 shadow-sm pet-card">
-                            <div class="pet-img-container">
-                                @if (!string.IsNullOrEmpty(pet.ImageUrl))
-                                {
-                                    <img src="@pet.ImageUrl" class="pet-img" alt="@pet.Name" />
-                                }
-                                else
-                                {
-                                    <span class="text-muted"><i class="bi bi-camera"></i> No Image</span>
-                                }
-                                <span class="badge bg-dark opacity-75 breed-badge">@pet.Breed</span>
-                            </div>
+                    <div class="col-md-4 col-sm-6">
+                        <div class="glass-card h-100 p-3 text-center">
+                            <img src="@(pet.ImageUrl ?? "/images/pet-placeholder.png")"
+                                 class="rounded-circle mb-3 shadow-sm"
+                                 width="120" height="120" style="object-fit:cover" />
 
-                            <div class="card-body text-center">
-                                <h5 class="card-title fw-bold">@pet.Name</h5>
-                                <p class="card-text text-muted">@pet.Age yrs • @pet.Gender</p>
+                            <h5 class="fw-bold">@pet.Name</h5>
+                            <p class="text-muted small">@pet.Breed • @pet.Age yrs</p>
 
-                                <div class="d-grid gap-2">
-                                    <a href="pet/@pet.Id" class="btn btn-outline-secondary btn-sm">View Details</a>
-                                    <a href="book-appointment/@pet.Id" class="btn btn-primary btn-sm">Request to Adopt</a>
-                                </div>
-                            </div>
+                            <a href="pet/@pet.Id" class="btn btn-sm btn-primary rounded-pill px-4">
+                                Meet Me
+                            </a>
                         </div>
                     </div>
                 }
@@ -110,13 +63,21 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-    private Shelter? shelter;
-    private IEnumerable<Pet>? pets;
+    private Shelter? _shelter;
+    private IEnumerable<Pet> _pets = new List<Pet>();
 
     protected override async Task OnInitializedAsync()
     {
-        shelter = await ShelterRepo.GetByIdAsync(Id);
-        if (shelter == null) { Nav.NavigateTo("shelters"); return; }
-        pets = await PetRepo.GetPetsByShelterIdAsync(Id);
+        _shelter = await ShelterRepo.GetByIdAsync(Id);
+
+        if (_shelter != null)
+        {
+            // Now this method exists and will work
+            _pets = await PetRepo.GetPetsByShelterIdAsync(_shelter.Id);
+        }
+        else
+        {
+            Nav.NavigateTo("/shelters");
+        }
     }
 }

@@ -4,15 +4,14 @@ namespace PAWPALme.Repositories
 {
     public interface IPetRepository
     {
-        Task<Pet?> GetByIdAsync(int id);
         Task<IEnumerable<Pet>> GetAllAsync();
+        Task<Pet?> GetByIdAsync(int id);
+
+        // This is the specific method required by ShelterDetails
         Task<IEnumerable<Pet>> GetPetsByShelterIdAsync(int shelterId);
+
         Task AddAsync(Pet pet);
         Task UpdateAsync(Pet pet);
         Task DeleteAsync(int id);
-
-        // Required for Search/Filter
-        Task<IEnumerable<Pet>> SearchAsync(string? searchTerm, string? species, string? breed, int? age);
-        Task<IEnumerable<string>> GetBreedsAsync();
     }
 }
