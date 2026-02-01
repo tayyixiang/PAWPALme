@@ -2,73 +2,91 @@
 @using PAWPALme.Models
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
-@* ARCHITECTURE: No [Authorize] attribute means this page is publicly accessible *@
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IPetRepository PetRepo
 @inject NavigationManager Nav
+@rendermode InteractiveServer
 
-<PageTitle>Find a Friend | PawPal</PageTitle>
+<PageTitle>Browse Pets | PawPal</PageTitle>
 
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold text-primary">Find Your Best Friend</h1>
-        <p class="lead text-muted">Browse our available pets looking for a forever home.</p>
-    </div>
+<div class="container py-4">
 
-    @* SEARCH UI: Input binding to '_searchTerm' triggers real-time filtering logic *@
-    <div class="row mb-4 justify-content-center">
-        <div class="col-md-6">
-            <div class="input-group input-group-lg shadow-sm">
-                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" class="form-control border-start-0"
-                       placeholder="Search by name, breed..."
+    @* --- SEARCH BAR --- *@
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-10">
+            <div class="neumorph-bar d-flex gap-3 align-items-center p-3 flex-wrap">
+                <i class="bi bi-search text-primary fs-4 ms-2"></i>
+
+                <input type="text" class="form-input flex-grow-1"
+                       placeholder="Search keywords (e.g. 'Playful Golden Retriever')"
                        @bind="SearchTerm"
-                       @bind:event="oninput" />
-                @* EVENT BINDING: 'oninput' ensures filtering happens on every keystroke, not just on blur *@
+                       @bind:event="oninput"
+                       @bind:after="FilterPets" />
+
+                <select class="form-input w-auto" @bind="SelectedSpecies" @bind:after="FilterPets">
+                    <option value="">All Species</option>
+                    @foreach (var species in _speciesList)
+                    {
+                        <option value="@species">@species</option>
+                    }
+                </select>
             </div>
         </div>
     </div>
 
-    @if (_filteredPets == null)
+    @* --- CONTENT AREA --- *@
+    @if (_isLoading)
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary"></div>
+            <p class="mt-2 text-muted">Loading pets...</p>
         </div>
     }
     else if (!_filteredPets.Any())
     {
-        <div class="text-center py-5">
-            <img src="/images/empty-state.svg" width="200" class="mb-3 opacity-50" />
-            <h4 class="text-muted">No pets found matching your search.</h4>
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-search fs-1 opacity-50"></i>
+            <h4 class="mt-3 fw-bold">No pets found</h4>
+            <p>Try adjusting your search terms or filters.</p>
+            <button class="btn btn-link" @onclick="ClearFilters">Clear all filters</button>
         </div>
     }
     else
     {
         <div class="row g-4">
-            @* RENDERING: Loop through the FILTERED list, not the raw database list *@
             @foreach (var pet in _filteredPets)
             {
-                <div class="col-md-4 col-lg-3">
-                    @* CARD COMPONENT: Represents a single entity in the grid *@
-                    <div class="card h-100 border-0 shadow-hover overflow-hidden rounded-4">
-                        <div class="position-relative">
-                            <img src="@(pet.ImageUrl ?? "/images/pet-placeholder.png")"
-                                 class="card-img-top"
-                                 style="height: 250px; object-fit: cover;"
-                                 alt="@pet.Name">
-                            <span class="badge bg-white text-dark position-absolute top-0 end-0 m-3 shadow-sm rounded-pill">
-                                @pet.Gender
-                            </span>
+                <div class="col-md-4 col-sm-6 col-lg-3">
+                    <div class="pet-liquid-card h-100">
+                        <div class="img-container">
+                            @if (!string.IsNullOrEmpty(pet.ImageUrl))
+                            {
+                                <img src="@pet.ImageUrl" alt="@pet.Name" />
+                            }
+                            else
+                            {
+                                <div class="placeholder-img">
+                                    <i class="bi bi-camera"></i>
+                                </div>
+                            }
+
+                            @if (pet.Status == PetStatus.Adopted)
+                            {
+                                <span class="status-badge bg-success">Adopted</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge bg-primary">Available</span>
+                            }
                         </div>
-                        <div class="card-body text-center">
+
+                        <div class="card-body mt-3 text-center">
                             <h5 class="fw-bold mb-1">@pet.Name</h5>
-                            <p class="text-muted small mb-2">@pet.Breed</p>
-                            <div class="d-flex justify-content-center gap-2 mb-3">
-                                <span class="badge bg-light text-secondary border">@pet.Age yrs</span>
-                                <span class="badge bg-light text-secondary border">@pet.Size</span>
-                            </div>
-                            @* ROUTING: Navigates to the details page, passing the ID parameter *@
-                            <a href="pets/@pet.Id" class="btn btn-outline-primary rounded-pill w-100 stretched-link">
-                                Meet @pet.Name
+                            <p class="text-muted small mb-3">@pet.Breed • @pet.Age yrs</p>
+
+                            @* --- FIX: CHANGED LINK TO 'pets/' (PLURAL) --- *@
+                            <a href="pets/@pet.Id" class="liquid-btn text-decoration-none d-block py-2">
+                                Meet Me
                             </a>
                         </div>
                     </div>
@@ -79,45 +97,53 @@
 </div>
 
 @code {
-    // Data Containers
     private IEnumerable<Pet> _allPets = new List<Pet>();
     private IEnumerable<Pet> _filteredPets = new List<Pet>();
+    private bool _isLoading = true;
 
-    // SEARCH LOGIC: Property with backing field to trigger filtering logic on set
-    private string _searchTerm = "";
-    public string SearchTerm
-    {
-        get => _searchTerm;
-        set
-        {
-            _searchTerm = value;
-            FilterPets(); // LOGIC: Re-run filter whenever input changes
-        }
-    }
+    // Search State
+    private string SearchTerm { get; set; } = "";
+    private string SelectedSpecies { get; set; } = "";
+
+    // Hardcoded list
+    private List<string> _speciesList = new() { "Dog", "Cat", "Rabbit", "Bird", "Other" };
 
     protected override async Task OnInitializedAsync()
     {
-        // DATA ACCESS: Fetch all available pets once to minimize DB hits
-        var pets = await PetRepo.GetAllAsync();
-
-        // LINQ: Initial filter to show only 'Available' pets (hiding Adopted ones)
-        _allPets = pets.Where(p => p.Status == PetStatus.Available);
+        await Task.Delay(100);
+        _allPets = await PetRepo.GetAllAsync();
         _filteredPets = _allPets;
+        _isLoading = false;
     }
 
-    // ALGORITHM: In-memory search mechanism
     private void FilterPets()
     {
-        if (string.IsNullOrWhiteSpace(SearchTerm))
+        var query = _allPets;
+
+        // 1. Species Filter
+        if (!string.IsNullOrEmpty(SelectedSpecies))
         {
-            _filteredPets = _allPets;
+            query = query.Where(p => p.Species.Equals(SelectedSpecies, StringComparison.OrdinalIgnoreCase));
         }
-        else
+
+        // 2. Keyword Search
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
         {
-            // LINQ: Case-insensitive search across multiple properties (Name OR Breed)
-            _filteredPets = _allPets.Where(p =>
-                p.Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
-                p.Breed.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+            var keywords = SearchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            query = query.Where(p =>
+            {
+                var searchableText = $"{p.Name} {p.Breed} {p.Description} {p.Size} {p.Gender}".ToLower();
+                return keywords.All(k => searchableText.Contains(k.ToLower()));
+            });
         }
+
+        _filteredPets = query.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        SearchTerm = "";
+        SelectedSpecies = "";
+        FilterPets();
     }
 }
