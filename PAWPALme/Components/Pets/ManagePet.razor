@@ -14,11 +14,13 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3><i class="bi bi-folder-plus text-primary me-2"></i>My Database</h3>
+        @* NAVIGATION: Link to the 'Create' view *@
         <a href="shelter/pets/add" class="btn btn-primary rounded-pill">
             <i class="bi bi-plus-lg me-1"></i> Add New Pet
         </a>
     </div>
 
+    @* LOADING STATE *@
     @if (_myPets == null)
     {
         <div class="text-center">Loading...</div>
@@ -30,6 +32,7 @@
     else
     {
         <div class="row g-3">
+            @* LOOP RENDERING: Iterates through filtered pet list *@
             @foreach (var pet in _myPets)
             {
                 <div class="col-md-6">
@@ -39,11 +42,13 @@
                                  class="rounded-3" width="80" height="80" style="object-fit:cover" />
                             <div>
                                 <h5 class="fw-bold mb-1">@pet.Name</h5>
+                                @* CONDITIONAL STYLING: CSS class changes based on PetStatus enum *@
                                 <span class="badge @(pet.Status == PetStatus.Available ? "bg-success" : "bg-secondary")">
                                     @pet.Status
                                 </span>
                             </div>
                             <div class="ms-auto">
+                                @* DYNAMIC ROUTING: Passes the specific Pet ID to the Editor page *@
                                 <a href="shelter/pets/edit/@pet.Id" class="btn btn-sm btn-outline-primary rounded-pill">Edit</a>
                             </div>
                         </div>
@@ -59,15 +64,19 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // 1. Identity Verification
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
+        // 2. Tenant Resolution (Find current Shelter)
         var shelters = await ShelterRepo.GetAllAsync();
         var myShelter = shelters.FirstOrDefault(s => s.OwnerUserId == userId);
 
         if (myShelter != null)
         {
+            // 3. Filtered Query (Data Isolation)
+            // Ensures shelters only see *their own* pets, maintaining multi-tenant security
             var allPets = await PetRepo.GetAllAsync();
             _myPets = allPets.Where(p => p.ShelterId == myShelter.Id);
         }

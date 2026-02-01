@@ -4,6 +4,7 @@ using PAWPALme.Models;
 
 namespace PAWPALme.Data
 {
+    // CONTEXT: Main entry point for Entity Framework to interact with SQL
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
@@ -11,32 +12,35 @@ namespace PAWPALme.Data
         {
         }
 
-        public DbSet<Pet> Pet { get; set; }
-        public DbSet<Shelter> Shelter { get; set; }
-        public DbSet<Appointment> Appointment { get; set; }
-        public DbSet<AdoptionApplication> AdoptionApplication { get; set; }
+        // DBSETS: These map C# classes to SQL tables.
+        // Naming Convention: Pluralized (Pets, Shelters) to represent collections of records.
+        public DbSet<Pet> Pets { get; set; }
+        public DbSet<Shelter> Shelters { get; set; }
+        public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<AdoptionApplication> AdoptionApplications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // --- FIX FOR MULTIPLE CASCADE PATHS ---
+            // FLUENT API: Explicitly defining complex relationships and cascade behaviors
+            // to prevent "Multiple Cascade Paths" SQL errors.
 
-            // 1. When a Pet is deleted, DO NOT auto-delete Appointments (Prevent Cycle)
+            // 1. Appointment -> Pet Relationship
             builder.Entity<Appointment>()
                 .HasOne(a => a.Pet)
                 .WithMany()
                 .HasForeignKey(a => a.PetId)
-                .OnDelete(DeleteBehavior.Restrict); // or DeleteBehavior.NoAction
+                .OnDelete(DeleteBehavior.Restrict); // RESTRICT: Deleting a Pet fails if Appointments exist
 
-            // 2. When a Shelter is deleted, DO NOT auto-delete Appointments (Prevent Cycle)
+            // 2. Appointment -> Shelter Relationship
             builder.Entity<Appointment>()
                 .HasOne(a => a.Shelter)
                 .WithMany()
                 .HasForeignKey(a => a.ShelterId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict); // RESTRICT: Prevents orphan appointments
 
-            // 3. When an Application is deleted, DO NOT auto-delete Appointments
+            // 3. Appointment -> AdoptionApplication Relationship
             builder.Entity<Appointment>()
                 .HasOne(a => a.AdoptionApplication)
                 .WithMany()
@@ -45,6 +49,3 @@ namespace PAWPALme.Data
         }
     }
 }
-
-
-

@@ -6,70 +6,61 @@ namespace PAWPALme.Repositories
 {
     public class PetRepository : IPetRepository
     {
-        private readonly IDbContextFactory<ApplicationDbContext> _factory;
+        // ARCHITECTURE: Injects the Database Context to access the SQL Server
+        private readonly ApplicationDbContext _context;
 
-        public PetRepository(IDbContextFactory<ApplicationDbContext> factory)
+        public PetRepository(ApplicationDbContext context)
         {
-            _factory = factory;
+            _context = context;
         }
 
         public async Task<IEnumerable<Pet>> GetAllAsync()
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Pet
+            // PERFORMANCE: Eager Loading (.Include)
+            // Fetches the associated Shelter data in the same SQL query to avoid "N+1 Select" issues
+            return await _context.Pets
                 .Include(p => p.Shelter)
                 .ToListAsync();
         }
 
         public async Task<Pet?> GetByIdAsync(int id)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Pet
+            return await _context.Pets
                 .Include(p => p.Shelter)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
-
+        // LOGIC: Filters pets by a specific Shelter ID
+        // Used by the Shelter Dashboard to ensure tenants only manage their own inventory.
         public async Task<IEnumerable<Pet>> GetPetsByShelterIdAsync(int shelterId)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Pet
+            return await _context.Pets
                 .Where(p => p.ShelterId == shelterId)
-                .OrderByDescending(p => p.Id)
+                .OrderByDescending(p => p.Id) // Show newest pets first
                 .ToListAsync();
         }
 
         public async Task AddAsync(Pet pet)
         {
-            using var context = _factory.CreateDbContext();
-            context.Pet.Add(pet);
-            await context.SaveChangesAsync();
+            _context.Pets.Add(pet);
+            await _context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Pet pet)
         {
-            using var context = _factory.CreateDbContext();
-            context.Pet.Update(pet);
-            await context.SaveChangesAsync();
+            // STATE MANAGEMENT: Clears the ChangeTracker to prevent conflicts 
+            // if the entity was previously loaded in the same context scope.
+            _context.ChangeTracker.Clear();
+            _context.Pets.Update(pet);
+            await _context.SaveChangesAsync();
         }
 
-        // <--- CRITICAL FIX: Delete related data first --->
         public async Task DeleteAsync(int id)
         {
-            using var context = _factory.CreateDbContext();
-            var pet = await context.Pet.FindAsync(id);
-
+            var pet = await _context.Pets.FindAsync(id);
             if (pet != null)
             {
-                // 1. Find all appointments for this pet
-                var appointments = context.Appointment.Where(a => a.PetId == id);
-
-                // 2. Delete them first (Manual Cascade)
-                context.Appointment.RemoveRange(appointments);
-
-                // 3. Now delete the pet
-                context.Pet.Remove(pet);
-
-                await context.SaveChangesAsync();
+                _context.Pets.Remove(pet);
+                await _context.SaveChangesAsync();
             }
         }
     }

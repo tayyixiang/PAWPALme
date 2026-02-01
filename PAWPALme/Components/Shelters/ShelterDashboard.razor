@@ -4,17 +4,24 @@
 @using PAWPALme.Models
 @using PAWPALme.Repositories
 @using PAWPALme.Enums
+
+@* ARCHITECTURE: Dependency Injection (DI) *@
+@* Injecting abstraction layers (Repositories) allows for loose coupling and easier testing. *@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IShelterRepository ShelterRepo
 @inject IPetRepository PetRepo
 @inject IAppointmentRepository ApptRepo
 @inject NavigationManager Nav
+
+@* SECURITY: Role-Based Access Control (RBAC) *@
+@* Restricts execution of this page strictly to users with the 'Shelter' claim. *@
 @attribute [Authorize(Roles = "Shelter")]
 
 <PageTitle>Shelter Command | PawPal</PageTitle>
 
 <div class="container py-5">
 
+    @* UX STATE: Conditional Rendering handles the async data loading latency *@
     @if (_isLoading)
     {
         <div class="text-center py-5">
@@ -31,6 +38,7 @@
     else
     {
         <div class="text-center mb-5">
+            @* DATA BINDING: One-way binding from the C# model to the DOM *@
             <h1 class="display-5 fw-bold text-dark mb-2">
                 @_myShelter.Name
             </h1>
@@ -38,6 +46,7 @@
         </div>
 
         <div class="row g-4 mb-5 justify-content-center">
+            @* METRICS: Displaying aggregated stats calculated in OnInitializedAsync *@
             <div class="col-md-4 col-lg-3">
                 <div class="glass-stat-card text-center">
                     <h2 class="fw-bold text-primary mb-0">@_petCount</h2>
@@ -58,6 +67,7 @@
             </div>
         </div>
 
+        @* NAVIGATION: Static routing to functional subsystems *@
         <div class="d-flex justify-content-center">
             <div class="glass-tabs-container">
                 <a href="shelter/pets" class="btn-glass-tab text-decoration-none">
@@ -75,36 +85,46 @@
 </div>
 
 @code {
+    // State Management: Private fields control component state and data storage
     private bool _isLoading = true;
     private Shelter? _myShelter;
 
-    // Stats
+    // Aggregated Metrics
     private int _petCount = 0;
     private int _pendingAppts = 0;
     private int _confirmedAppts = 0;
 
+    // LIFECYCLE METHOD: Executed once when the component is ready to start
     protected override async Task OnInitializedAsync()
     {
+        // 1. Identity Resolution: Access the current User Context from the secure HttpContext
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
         if (user.Identity != null && user.Identity.IsAuthenticated)
         {
+            // 2. Claim Extraction: Retrieve the unique NameIdentifier (Primary Key) of the logged-in user
             var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+            // 3. Data Fetching: Retrieve all shelters to perform owner matching
             var allShelters = await ShelterRepo.GetAllAsync();
             _myShelter = allShelters.FirstOrDefault(s => s.OwnerUserId == userId);
 
             if (_myShelter != null)
             {
+                // 4. Aggregation Logic: Execute parallel queries to build dashboard stats
                 var allPets = await PetRepo.GetAllAsync();
+                // LINQ Query: Filtering pets belonging to this specific tenant (Shelter)
                 _petCount = allPets.Count(p => p.ShelterId == _myShelter.Id);
 
                 var myAppts = await ApptRepo.GetByShelterIdAsync(_myShelter.Id);
+                // LINQ Projection: Categorizing appointments by status Enum
                 _pendingAppts = myAppts.Count(a => a.Status == AppointmentStatus.Pending);
                 _confirmedAppts = myAppts.Count(a => a.Status == AppointmentStatus.Confirmed);
             }
         }
 
+        // 5. Render Trigger: Updating state variable forces the Blazor renderer to refresh the UI
         _isLoading = false;
     }
 }

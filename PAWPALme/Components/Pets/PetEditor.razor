@@ -1,4 +1,5 @@
-﻿@page "/shelter/pets/add"
+﻿@* ROUTING: Supports two routes: one for creating (no ID) and one for editing (with ID) *@
+@page "/shelter/pets/add"
 @page "/shelter/pets/edit/{Id:int}"
 @using Microsoft.AspNetCore.Authorization
 @using PAWPALme.Models
@@ -26,7 +27,7 @@
                 <div class="card-header bg-white border-bottom-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                     <h3 class="fw-bold text-primary mb-0">@(Id == null ? "Add a New Pet" : $"Edit {PetModel.Name}")</h3>
 
-                    @* DELETE BUTTON (Only visible when editing) *@
+                    @* CONDITIONAL BUTTON: Delete is only available in Edit Mode *@
                     @if (Id.HasValue)
                     {
                         <button class="btn btn-outline-danger btn-sm" type="button" @onclick="DeletePet">
@@ -44,6 +45,7 @@
                             <div class="col-md-5 mb-4">
                                 <label class="form-label fw-bold">Pet Photo</label>
                                 <div class="image-upload-area">
+                                    @* IMAGE PREVIEW LOGIC *@
                                     @if (!string.IsNullOrEmpty(PetModel.ImageUrl))
                                     {
                                         <img src="@PetModel.ImageUrl" class="preview-img" />
@@ -58,6 +60,7 @@
                                             <p class="mt-2">Click to upload photo</p>
                                         </div>
                                     }
+                                    @* COMPONENT: InputFile handles the file stream selection *@
                                     <InputFile OnChange="HandleFileSelected" class="position-absolute w-100 h-100 top-0 start-0 opacity-0" accept=".jpg,.png,.jpeg" />
                                 </div>
 
@@ -144,6 +147,7 @@
 </div>
 
 @code {
+    // ROUTE PARAMETER: Captures the 'Id' from URL if present
     [Parameter] public int? Id { get; set; }
 
     [SupplyParameterFromForm]
@@ -154,9 +158,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Only load if ID matches and model isn't already loaded
+        // LOGIC: Distinguish between "Create Mode" and "Edit Mode"
         if (PetModel.Id == 0 && Id.HasValue)
         {
+            // --- EDIT MODE ---
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = await UserManager.GetUserAsync(authState.User);
             userShelterId = user?.ShelterId;
@@ -167,10 +172,12 @@
                 return;
             }
 
+            // Data Fetch
             var existingPet = await PetRepo.GetByIdAsync(Id.Value);
             if (existingPet != null)
             {
-                // Security check: ensure shelter owns this pet
+                // SECURITY CHECK: Authorization
+                // Ensures User A cannot edit User B's pet by changing the URL ID
                 if (existingPet.ShelterId != userShelterId)
                 {
                     Nav.NavigateTo("/shelter/pets");
@@ -181,24 +188,28 @@
         }
         else if (!Id.HasValue)
         {
-            // Set defaults for NEW pet
+            // --- CREATE MODE ---
+            // Set defaults
             PetModel.Species = "Dog";
             PetModel.Size = "Medium";
             PetModel.Status = PetStatus.Available;
         }
     }
 
+    // Logic: Toggles Enum status based on checkbox boolean
     private void ToggleAdoptedStatus(ChangeEventArgs e)
     {
         bool isAdopted = (bool)(e.Value ?? false);
         PetModel.Status = isAdopted ? PetStatus.Adopted : PetStatus.Available;
     }
 
+    // FILE UPLOAD HANDLER
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
         isUploading = true;
         try
         {
+            // Service Abstraction: Delegates actual file I/O to a service
             var path = await FileService.UploadFileAsync(e.File, "pets");
             PetModel.ImageUrl = path;
         }
@@ -209,9 +220,10 @@
         isUploading = false;
     }
 
+    // SAVE HANDLER (Create & Update)
     private async Task SavePet()
     {
-        // Re-verify auth just in case
+        // Re-verify authentication state for safety
         if (userShelterId == null)
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -221,27 +233,27 @@
 
         if (userShelterId == null) return;
 
+        // AUTO-ASSIGNMENT: Forces the pet to belong to the current user's shelter
         PetModel.ShelterId = userShelterId.Value;
 
         if (PetModel.Id == 0)
         {
-            await PetRepo.AddAsync(PetModel);
+            await PetRepo.AddAsync(PetModel); // INSERT
         }
         else
         {
-            await PetRepo.UpdateAsync(PetModel);
+            await PetRepo.UpdateAsync(PetModel); // UPDATE
         }
 
         Nav.NavigateTo("shelter/pets");
     }
 
-    // --- FIX: DELETE ACTION ---
     private async Task DeletePet()
     {
         if (PetModel.Id > 0)
         {
             await PetRepo.DeleteAsync(PetModel.Id);
-            Nav.NavigateTo("shelter/pets", forceLoad: true); // Force reload to refresh grid
+            Nav.NavigateTo("shelter/pets", forceLoad: true); // Force reload to refresh grid data
         }
     }
 }

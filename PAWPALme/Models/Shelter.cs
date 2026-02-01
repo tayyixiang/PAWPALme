@@ -15,17 +15,12 @@ namespace PAWPALme.Models
         [Required]
         public string Phone { get; set; } = "";
 
-        // NEW: For the "Details" you requested
         [StringLength(1000)]
         public string? Description { get; set; }
 
-        // NEW: For a profile picture/logo
         public string? ImageUrl { get; set; }
 
-        // Link to the Identity User (Login)
         public string? OwnerUserId { get; set; }
+        public virtual ICollection<Pet> Pets { get; set; } = new List<Pet>();
     }
 }
-
-
-

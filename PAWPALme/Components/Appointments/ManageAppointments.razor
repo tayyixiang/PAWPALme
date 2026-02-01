@@ -7,6 +7,8 @@
 @inject IAppointmentRepository ApptRepo
 @inject IShelterRepository ShelterRepo
 @attribute [Authorize(Roles = "Shelter")]
+
+@* RENDER MODE: InteractiveServer enables real-time event handling via SignalR *@
 @rendermode InteractiveServer
 
 <div class="container py-4">
@@ -14,6 +16,7 @@
         <h3 class="fw-bold">Manage Appointments</h3>
     </div>
 
+    @* TAB NAVIGATION: Toggles internal state variable '_activeTab' *@
     <div class="d-flex justify-content-center mb-5">
         <div class="glass-tabs-container">
             <button class="btn-glass-tab @(_activeTab == "requests" ? "active" : "")"
@@ -31,11 +34,13 @@
         </div>
     </div>
 
+    @* ERROR HANDLING: Feedback display *@
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
         <div class="alert alert-danger text-center">@_errorMessage</div>
     }
 
+    @* CONDITIONAL RENDERING: View Logic for "Requests" Tab *@
     @if (_activeTab == "requests")
     {
         @if (!_pending.Any())
@@ -63,6 +68,7 @@
                                 <span class="badge bg-warning text-dark">Pending</span>
                             </div>
 
+                            @* INTERACTIVE FORM: Allows Shelter to set date/time before confirming *@
                             <div class="bg-white rounded-3 p-3 mb-3 border">
                                 <label class="small fw-bold text-muted mb-2">Set Appointment Time:</label>
                                 <div class="row g-2">
@@ -77,6 +83,7 @@
                                 </div>
                             </div>
 
+                            @* ACTION BUTTONS: Trigger State Transitions (Pending -> Denied/Confirmed) *@
                             <div class="d-flex gap-2 justify-content-end">
                                 <button class="btn btn-outline-danger btn-sm rounded-pill px-4"
                                         @onclick="() => UpdateStatus(appt, AppointmentStatus.Denied)">
@@ -94,6 +101,7 @@
         }
     }
 
+    @* CONDITIONAL RENDERING: View Logic for "Schedule" Tab *@
     @if (_activeTab == "schedule")
     {
         @if (!_scheduled.Any())
@@ -108,6 +116,7 @@
                     {
                         <div class="glass-card mb-3 p-4 border-start border-5 border-success">
 
+                            @* INLINE EDITING: Conditional rendering based on '_editingId' *@
                             @if (_editingId == appt.Id)
                             {
                                 <h5 class="fw-bold mb-3 text-primary">Edit Appointment</h5>
@@ -164,9 +173,12 @@
 </div>
 
 @code {
+    // UI State Controls
     private string _activeTab = "requests";
     private int _editingId = 0;
     private string _errorMessage = "";
+
+    // Data Collections
     private IEnumerable<Appointment> _pending = new List<Appointment>();
     private IEnumerable<Appointment> _scheduled = new List<Appointment>();
 
@@ -178,10 +190,11 @@
     private void SwitchTab(string tab)
     {
         _activeTab = tab;
-        _editingId = 0; // Reset editing when switching tabs
+        _editingId = 0; // UX: Reset editing state when navigating away
         _errorMessage = "";
     }
 
+    // CENTRALIZED DATA LOADING
     private async Task LoadData()
     {
         try
@@ -194,7 +207,10 @@
 
             if (myShelter != null)
             {
+                // DATA ACCESS: Fetch all records associated with this tenant (Shelter)
                 var all = await ApptRepo.GetByShelterIdAsync(myShelter.Id);
+
+                // IN-MEMORY FILTERING: Segregate data into buckets based on Status Enum
                 _pending = all.Where(a => a.Status == AppointmentStatus.Pending).OrderBy(a => a.AppointmentDate).ToList();
                 _scheduled = all.Where(a => a.Status == AppointmentStatus.Confirmed).OrderBy(a => a.AppointmentDate).ToList();
             }
@@ -206,7 +222,7 @@
         }
     }
 
-    // Helper to safely parse time
+    // UTILITY: Safe Parsing for TimeSpan
     private void UpdateTime(Appointment appt, object? value)
     {
         if (TimeSpan.TryParse(value?.ToString(), out var time))
@@ -215,13 +231,14 @@
         }
     }
 
+    // LOGIC: State Transition (Pending -> Confirmed/Denied)
     private async Task UpdateStatus(Appointment appt, AppointmentStatus status)
     {
         try
         {
             appt.Status = status;
-            await ApptRepo.UpdateAsync(appt);
-            await LoadData();
+            await ApptRepo.UpdateAsync(appt); // DB Commit
+            await LoadData(); // UI Refresh
         }
         catch { _errorMessage = "Failed to update status."; }
     }

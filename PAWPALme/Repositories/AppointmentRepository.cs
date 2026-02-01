@@ -6,70 +6,67 @@ namespace PAWPALme.Repositories
 {
     public class AppointmentRepository : IAppointmentRepository
     {
-        private readonly IDbContextFactory<ApplicationDbContext> _factory;
+        private readonly ApplicationDbContext _context;
 
-        public AppointmentRepository(IDbContextFactory<ApplicationDbContext> factory)
+        public AppointmentRepository(ApplicationDbContext context)
         {
-            _factory = factory;
+            _context = context;
         }
 
-        public async Task AddAsync(Appointment appointment)
-        {
-            using var context = _factory.CreateDbContext();
-            context.Appointment.Add(appointment);
-            await context.SaveChangesAsync();
-        }
-
-        public async Task UpdateAsync(Appointment appointment)
-        {
-            using var context = _factory.CreateDbContext();
-            context.Appointment.Update(appointment);
-            await context.SaveChangesAsync();
-        }
-
-        public async Task DeleteAsync(int id)
-        {
-            using var context = _factory.CreateDbContext();
-            var appt = await context.Appointment.FindAsync(id);
-            if (appt != null)
-            {
-                context.Appointment.Remove(appt);
-                await context.SaveChangesAsync();
-            }
-        }
-
+        // Used when selecting a specific appointment to Edit or View Details
         public async Task<Appointment?> GetByIdAsync(int id)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Appointment
+            // JOIN LOGIC: Pulls in both the Pet details and the Adopter (User) details
+            return await _context.Appointments
                 .Include(a => a.Pet)
-                .Include(a => a.Shelter)
-                .Include(a => a.AdoptionApplication)
-                .Include(a => a.AdopterUser) // Ensure User is loaded
+                .Include(a => a.AdopterUser)
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
 
+        // QUERY: Fetch by Tenant (Shelter)
+        // Used by the Shelter Dashboard to see incoming requests
         public async Task<IEnumerable<Appointment>> GetByShelterIdAsync(int shelterId)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Appointment
+            return await _context.Appointments
                 .Include(a => a.Pet)
-                .Include(a => a.AdoptionApplication)
-                .Include(a => a.AdopterUser) // <--- CRITICAL FIX: Loads Adopter Name
-                .Where(a => a.ShelterId == shelterId)
-                .OrderByDescending(a => a.AppointmentDate)
+                .Include(a => a.AdopterUser)
+                .Where(a => a.ShelterId == shelterId) // WHERE Clause filtering
+                .OrderByDescending(a => a.AppointmentDate) // Sort by Date
                 .ToListAsync();
         }
 
+        // QUERY: Fetch by User
+        // Used by "My Appointments" page so adopters can track their own history
         public async Task<IEnumerable<Appointment>> GetByUserIdAsync(string userId)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Appointment
+            return await _context.Appointments
                 .Include(a => a.Pet)
                 .Include(a => a.Shelter)
                 .Where(a => a.AdopterUserId == userId)
                 .OrderByDescending(a => a.AppointmentDate)
                 .ToListAsync();
+        }
+
+        public async Task AddAsync(Appointment appointment)
+        {
+            _context.Appointments.Add(appointment);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateAsync(Appointment appointment)
+        {
+            _context.Appointments.Update(appointment);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(int id)
+        {
+            var appt = await _context.Appointments.FindAsync(id);
+            if (appt != null)
+            {
+                _context.Appointments.Remove(appt);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }
