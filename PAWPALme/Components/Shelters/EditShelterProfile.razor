@@ -9,6 +9,8 @@
 @inject IShelterRepository ShelterRepo
 @inject IFileService FileService
 @inject NavigationManager Nav
+
+@* SECURITY: Restricted to Shelters only. Adopters cannot edit shelter profiles. *@
 @attribute [Authorize(Roles = "Shelter")]
 
 <PageTitle>Settings | PawPal</PageTitle>
@@ -27,6 +29,9 @@
             <h4 class="fw-bold mb-0">Shelter Profile</h4>
         </div>
 
+        @* ERROR HANDLING:
+           Displays upload errors (e.g., "File too large") directly to the user.
+        *@
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
             <div class="alert alert-danger">@_errorMessage</div>
@@ -39,21 +44,28 @@
                 @* --- IMAGE UPLOAD SECTION --- *@
                 <div class="col-12 text-center mb-4">
                     <div class="position-relative d-inline-block">
+                        @* PREVIEW:
+                           Shows the current image if available, or a placeholder if not.
+                        *@
                         <img src="@(Input.ImageUrl ?? "/images/pet-placeholder.png")"
                              class="rounded-circle shadow-sm border"
                              style="width: 150px; height: 150px; object-fit: cover;" />
 
+                        @* UPLOAD BUTTON:
+                           We wrap the <InputFile> in a <label> styled as a button.
+                           The <InputFile> itself is hidden (class="d-none"), but clicking the label triggers it.
+                           This is a common CSS trick to make ugly file inputs look pretty.
+                        *@
                         <label class="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0 mb-2 me-2"
                                style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                             <i class="bi bi-camera-fill"></i>
-                            @* Accept only images to prevent errors *@
                             <InputFile OnChange="HandleImageUpload" class="d-none" accept=".jpg,.jpeg,.png" />
                         </label>
                     </div>
                     <div class="mt-2 text-muted small">Allowed: JPG, PNG (Max 5MB)</div>
                 </div>
-                @* ----------------------------- *@
 
+                @* --- TEXT FIELDS --- *@
                 <div class="col-md-12">
                     <label class="ms-3 mb-2 small fw-bold text-muted">Shelter Name</label>
                     <div class="input-group-custom">
@@ -95,7 +107,10 @@
         </EditForm>
     </div>
 
-    @* SECURITY UI *@
+    @* SECURITY UI:
+       This section handles sensitive actions like Logging Out.
+       It uses a <form> POST request for security (CSRF protection).
+    *@
     <div class="glass-card p-5 border-danger-subtle">
         <div class="d-flex align-items-center mb-4">
             <div class="icon-circle bg-red-soft text-danger me-3">
@@ -122,6 +137,7 @@
 </div>
 
 @code {
+    // FORM MODEL: Holds the input data separate from the Database Entity
     [SupplyParameterFromForm]
     private ShelterInput Input { get; set; } = new();
 
@@ -130,6 +146,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // 1. LOAD DATA:
+        // We find the currently logged-in user and then find their associated Shelter profile.
         if (_shelter == null)
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -138,6 +156,8 @@
             var shelters = await ShelterRepo.GetAllAsync();
             _shelter = shelters.FirstOrDefault(s => s.OwnerUserId == userId);
 
+            // 2. MAP TO FORM:
+            // We copy the database values into the Input form so the user can edit them.
             if (_shelter != null)
             {
                 Input.Name = _shelter.Name;
@@ -149,18 +169,24 @@
         }
     }
 
+    // UPLOAD LOGIC:
+    // Handles the file selection event.
     private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
-        _errorMessage = ""; // Reset error
+        _errorMessage = ""; // Reset error state
         var file = e.File;
         if (file != null)
         {
-            // Try to upload
+            // DELEGATION:
+            // We pass the file to FileService. It handles:
+            // 1. Creating the folder if it's missing.
+            // 2. Generating a unique filename (Guid).
+            // 3. Streaming the data safely.
             var imageUrl = await FileService.UploadFileAsync(file, "shelters");
 
             if (imageUrl != null)
             {
-                Input.ImageUrl = imageUrl;
+                Input.ImageUrl = imageUrl; // Success: Update the preview
             }
             else
             {
@@ -169,19 +195,22 @@
         }
     }
 
+    // SAVE LOGIC:
     private async Task SaveProfile()
     {
         if (_shelter != null)
         {
+            // 1. UPDATE ENTITY: Copy form values back to the database object
             _shelter.Name = Input.Name;
             _shelter.Address = Input.Address;
             _shelter.Phone = Input.Phone;
             _shelter.Description = Input.Description;
             _shelter.ImageUrl = Input.ImageUrl;
 
+            // 2. SAVE TO DB
             await ShelterRepo.UpdateAsync(_shelter);
 
-            // FIX: Correct Route (was 'shelter-dashboard')
+            // 3. REDIRECT: Go back to dashboard
             Nav.NavigateTo("shelter/dashboard");
         }
     }

@@ -1,19 +1,28 @@
-﻿@page "/shelter/{Id:int}"
+﻿@* ROUTING: 
+   The URL requires an ID (e.g., /shelter/1).
+   This tells the page which specific shelter profile to load.
+*@
+@page "/shelter/{Id:int}"
 @using PAWPALme.Models
 @using PAWPALme.Repositories
 @inject IShelterRepository ShelterRepo
 @inject IPetRepository PetRepo
 @inject NavigationManager Nav
 
+@* DYNAMIC TITLE: Displays the Shelter's name in the browser tab once loaded *@
 <PageTitle>@(_shelter?.Name ?? "Shelter Details")</PageTitle>
 
 <div class="container py-5">
+    @* LOADING STATE: 
+       If the database hasn't returned the shelter data yet, show a spinner.
+    *@
     @if (_shelter == null)
     {
         <div class="text-center"><div class="spinner-border text-primary"></div></div>
     }
     else
     {
+        @* HEADER SECTION: Displays Shelter Contact Info *@
         <div class="glass-card p-5 mb-5 text-center">
             <div class="d-inline-block bg-primary text-white rounded-circle p-4 mb-3 fs-1 shadow-sm">
                 <i class="bi bi-shop-window"></i>
@@ -22,6 +31,9 @@
             <p class="text-muted mb-4"><i class="bi bi-geo-alt me-1"></i> @_shelter.Address</p>
 
             <div class="d-flex justify-content-center gap-3">
+                @* ACTION BUTTON: 
+                   The 'tel:' protocol automatically opens the phone app on mobile devices.
+                *@
                 <a href="tel:@_shelter.Phone" class="btn btn-outline-primary rounded-pill px-4">
                     <i class="bi bi-telephone me-2"></i> Call Us
                 </a>
@@ -30,6 +42,9 @@
 
         <h3 class="fw-bold mb-4">Our Pets</h3>
 
+        @* PET LISTING: 
+           This grid displays ONLY the pets belonging to this specific shelter.
+        *@
         @if (!_pets.Any())
         {
             <div class="text-muted text-center py-5">
@@ -43,6 +58,7 @@
                 {
                     <div class="col-md-4 col-sm-6">
                         <div class="glass-card h-100 p-3 text-center">
+                            @* Image Handling: Uses a placeholder if the shelter hasn't uploaded a photo *@
                             <img src="@(pet.ImageUrl ?? "/images/pet-placeholder.png")"
                                  class="rounded-circle mb-3 shadow-sm"
                                  width="120" height="120" style="object-fit:cover" />
@@ -50,6 +66,7 @@
                             <h5 class="fw-bold">@pet.Name</h5>
                             <p class="text-muted small">@pet.Breed • @pet.Age yrs</p>
 
+                            @* Navigation link to the specific pet's profile *@
                             <a href="pet/@pet.Id" class="btn btn-sm btn-primary rounded-pill px-4">
                                 Meet Me
                             </a>
@@ -62,21 +79,27 @@
 </div>
 
 @code {
+    // URL PARAMETER: Catches the ID passed in the URL
     [Parameter] public int Id { get; set; }
+
     private Shelter? _shelter;
     private IEnumerable<Pet> _pets = new List<Pet>();
 
     protected override async Task OnInitializedAsync()
     {
+        // 1. FETCH SHELTER: Get the profile details
         _shelter = await ShelterRepo.GetByIdAsync(Id);
 
         if (_shelter != null)
         {
-            // Now this method exists and will work
+            // 2. FETCH RELATED DATA:
+            // We use a specific repository method to find pets where Pet.ShelterId matches this Shelter.
+            // This ensures we don't show animals from other organizations.
             _pets = await PetRepo.GetPetsByShelterIdAsync(_shelter.Id);
         }
         else
         {
+            // SAFETY: If the ID is invalid (e.g. shelter deleted), redirect to the main list
             Nav.NavigateTo("/shelters");
         }
     }

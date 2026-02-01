@@ -1,8 +1,14 @@
 ﻿@page "/admin/shelters"
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Admin")]
 @using PAWPALme.Models
 @using PAWPALme.Repositories
+
+@* SECURITY: 
+   Strictly for 'Admin' roles. Even Shelters cannot access this page.
+   This prevents regular users from seeing or modifying the full shelter database.
+*@
+@attribute [Authorize(Roles = "Admin")]
+
 @inject IShelterRepository ShelterRepo
 @rendermode InteractiveServer
 
@@ -11,13 +17,19 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Manage Shelters</h2>
+        @* CREATE BUTTON: Switches the view mode to 'Create' *@
         <button class="btn btn-primary" @onclick="StartCreate">
             <i class="bi bi-plus-lg"></i> Add New Shelter
         </button>
     </div>
 
+    @* VIEW LOGIC: 
+       I used a simple Enum (ViewMode) to switch between the List View and the Form View.
+       This avoids having to create separate pages for Create/Edit, making the Admin UI feel faster.
+    *@
     @if (mode == ViewMode.List)
     {
+        @* LOADING STATE *@
         if (shelters == null)
         {
             <div class="spinner-border text-primary"></div>
@@ -40,8 +52,10 @@
                             <tr>
                                 <td class="fw-bold">@s.Name</td>
                                 <td>@s.Address</td>
+                                @* Shows the linked User Account ID for debugging *@
                                 <td><small class="text-muted">@s.OwnerUserId</small></td>
                                 <td>
+                                    @* EDIT BUTTON: Loads this specific shelter into the form *@
                                     <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(s)">
                                         <i class="bi bi-pencil"></i> Edit
                                     </button>
@@ -55,8 +69,10 @@
     }
     else
     {
+        @* FORM VIEW (Used for both Create and Edit) *@
         <div class="card shadow-sm">
             <div class="card-header bg-dark text-white">
+                @* Dynamic Header Text based on mode *@
                 @(mode == ViewMode.Create ? "Add New Shelter" : "Edit Shelter")
             </div>
             <div class="card-body">
@@ -82,6 +98,7 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
+                        @* Cancel Button: Simply switches back to List Mode *@
                         <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
                         <button type="submit" class="btn btn-success">Save Shelter</button>
                     </div>
@@ -92,8 +109,11 @@
 </div>
 
 @code {
+    // STATE MANAGEMENT:
+    // Simple state machine to control which UI block is visible.
     private enum ViewMode { List, Create, Edit }
     private ViewMode mode = ViewMode.List;
+
     private List<Shelter>? shelters;
     private Shelter currentShelter = new();
 
@@ -102,28 +122,35 @@
         await LoadShelters();
     }
 
+    // DATA LOADING: Fetches all shelters regardless of owner
     private async Task LoadShelters()
     {
         shelters = (await ShelterRepo.GetAllAsync()).ToList();
     }
 
+    // ACTIONS:
+    // Prepares the form for a new entry
     private void StartCreate()
     {
         currentShelter = new Shelter();
         mode = ViewMode.Create;
     }
 
+    // Prepares the form with existing data
     private void StartEdit(Shelter shelter)
     {
         currentShelter = shelter;
         mode = ViewMode.Edit;
     }
 
+    // Exits the form without saving
     private void Cancel()
     {
         mode = ViewMode.List;
     }
 
+    // SAVE LOGIC:
+    // Determines whether to call Add (Insert) or Update based on the current mode.
     private async Task SaveShelter()
     {
         if (mode == ViewMode.Create)
@@ -134,9 +161,7 @@
         {
             await ShelterRepo.UpdateAsync(currentShelter);
         }
-        await LoadShelters();
-        mode = ViewMode.List;
+        await LoadShelters(); // Refresh the grid
+        mode = ViewMode.List; // Return to grid view
     }
 }
-
-

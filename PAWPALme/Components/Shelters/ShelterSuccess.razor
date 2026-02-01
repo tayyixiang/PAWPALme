@@ -7,6 +7,10 @@
 <div class="container text-center success-container">
     <div class="card mx-auto success-card">
         <div class="card-body p-5">
+            @* VISUAL CONFIRMATION: 
+               A large, clear icon communicates success instantly, 
+               before the user even reads the text. 
+            *@
             <h1 class="icon-large">
                 <i class="bi bi-check-circle-fill"></i>
             </h1>
@@ -19,17 +23,23 @@
 
             <hr />
 
+            @* CONDITIONAL NAVIGATION:
+               We check the user's authentication state to decide where to send them next.
+               This handles two scenarios:
+               1. Auto-Login worked -> Send to Dashboard.
+               2. Auto-Login disabled/failed -> Send to Login Page.
+            *@
             <AuthorizeView>
                 <Authorized>
-                    @* If they are already logged in (via auto-login), show Dashboard link *@
+                    @* SCENARIO A: User is already logged in. *@
                     <p class="text-muted">You are now logged in.</p>
                     <a href="/shelter/dashboard" class="btn btn-primary w-100 btn-login">
                         Go to Dashboard
                     </a>
                 </Authorized>
                 <NotAuthorized>
-                    @* If they are NOT logged in, show Login link *@
-                    @* BUG FIX: Added leading slash "/" to make path absolute *@
+                    @* SCENARIO B: User is anonymous. *@
+                    @* We provide a manual link to the login controller. *@
                     <a href="/Account/Login" class="btn btn-primary w-100 btn-login">
                         Proceed to Login
                     </a>

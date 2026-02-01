@@ -8,7 +8,11 @@
 
 <PageTitle>Home | PawPal</PageTitle>
 
-@* --- HERO SECTION --- *@
+@* --- HERO SECTION --- 
+   This is the "Billboard" of the website. 
+   I used an inline style for the background image with a linear-gradient overlay
+   to ensure the white text remains readable regardless of the image brightness.
+*@
 <div class="hero-section text-center text-white d-flex align-items-center justify-content-center"
      style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1450778869180-41d0601e046e?q=80&w=1600&auto=format&fit=crop'); background-size: cover; background-position: center; min-height: 60vh;">
 
@@ -17,9 +21,15 @@
         <p class="lead mb-4">Connecting loving homes with pets in need. Adopt, don't shop.</p>
 
         <div class="d-flex justify-content-center gap-3">
+            @* Primary Call to Action for everyone *@
             <a href="pets" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold">Browse Pets</a>
+
+            @* CONDITIONAL BUTTON:
+               This button ONLY appears if the logged-in user is a Shelter.
+               Regular adopters will just see the "Browse Pets" button centered.
+            *@
             <AuthorizeView Roles="Shelter">
-                <a href="shelter-dashboard" class="btn btn-outline-light btn-lg rounded-pill px-5 fw-bold">Shelter Dashboard</a>
+                <a href="shelter/dashboard" class="btn btn-outline-light btn-lg rounded-pill px-5 fw-bold">Shelter Dashboard</a>
             </AuthorizeView>
         </div>
     </div>
@@ -32,6 +42,10 @@
         <p class="text-muted">Meet some of our newest arrivals looking for a home.</p>
     </div>
 
+    @* LOADING STATE: 
+       Essential for good UX. Prevents the user from seeing a broken/empty layout 
+       while the database query is running in the background.
+    *@
     @if (_featuredPets == null)
     {
         <div class="text-center">
@@ -45,6 +59,10 @@
             {
                 <div class="col-md-4">
                     <div class="card h-100 border-0 shadow-hover rounded-4 overflow-hidden">
+                        @* IMAGE HANDLING:
+                           Uses the null-coalescing operator (??) to provide a fallback image
+                           if the pet doesn't have one yet.
+                        *@
                         <img src="@(pet.ImageUrl ?? "/images/pet-placeholder.png")"
                              class="card-img-top"
                              style="height: 250px; object-fit: cover;"
@@ -54,7 +72,10 @@
                             <h5 class="fw-bold text-primary">@pet.Name</h5>
                             <p class="text-muted">@pet.Breed • @pet.Age yrs</p>
 
-                            @* --- THE FIX: Changed 'pet/' to 'pets/' (PLURAL) --- *@
+                            @* NAVIGATION LINK:
+                               Points to the detailed profile page. 
+                               Note the plural 'pets/' matches the @page instruction in PetDetails.razor.
+                            *@
                             <a href="pets/@pet.Id" class="btn btn-outline-primary rounded-pill w-100">
                                 View Details
                             </a>
@@ -75,8 +96,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Fetch only available pets and take top 3
+        // LOGIC: FETCH & FILTER
+        // 1. Get all data from the repository.
         var allPets = await PetRepo.GetAllAsync();
+
+        // 2. LINQ Query:
+        //    - Filter: Only show pets that are currently 'Available' (ignore adopted ones).
+        //    - Sort: Order by ID Descending (highest ID = newest pet added).
+        //    - Limit: Take only the top 3 results for the homepage display.
         _featuredPets = allPets
             .Where(p => p.Status == PetStatus.Available)
             .OrderByDescending(p => p.Id)

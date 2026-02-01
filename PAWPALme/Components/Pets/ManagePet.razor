@@ -7,6 +7,11 @@
 @inject IPetRepository PetRepo
 @inject IShelterRepository ShelterRepo
 @inject NavigationManager Nav
+
+@* SECURITY: 
+    This attribute locks the page. Only users with the 'Shelter' role tag can enter.
+    If a normal user tries to type this URL, they get kicked out.
+*@
 @attribute [Authorize(Roles = "Shelter")]
 
 <PageTitle>Manage Pets | PawPal</PageTitle>
@@ -14,13 +19,20 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3><i class="bi bi-folder-plus text-primary me-2"></i>My Database</h3>
-        @* NAVIGATION: Link to the 'Create' view *@
+        @* NAVIGATION: 
+           This button sends the user to the 'Editor' page but without an ID.
+           The Editor page knows that "No ID" means "Create New".
+        *@
         <a href="shelter/pets/add" class="btn btn-primary rounded-pill">
             <i class="bi bi-plus-lg me-1"></i> Add New Pet
         </a>
     </div>
 
-    @* LOADING STATE *@
+    @* LOADING LOGIC:
+       1. _myPets is null? -> Database hasn't answered yet. Show text.
+       2. _myPets is empty? -> Database answered, but you have no data. Show alert.
+       3. _myPets has data? -> Show the cards.
+    *@
     @if (_myPets == null)
     {
         <div class="text-center">Loading...</div>
@@ -32,23 +44,31 @@
     else
     {
         <div class="row g-3">
-            @* LOOP RENDERING: Iterates through filtered pet list *@
             @foreach (var pet in _myPets)
             {
                 <div class="col-md-6">
                     <div class="card p-3 shadow-sm border-0 rounded-4">
                         <div class="d-flex align-items-center gap-3">
+                            @* Fallback Image: Uses the null-coalescing operator '??' *@
                             <img src="@(pet.ImageUrl ?? "/images/pet-placeholder.png")"
                                  class="rounded-3" width="80" height="80" style="object-fit:cover" />
                             <div>
                                 <h5 class="fw-bold mb-1">@pet.Name</h5>
-                                @* CONDITIONAL STYLING: CSS class changes based on PetStatus enum *@
+
+                                @* CONDITIONAL CSS: 
+                                   I use a ternary operator here. 
+                                   If Available -> Green Badge (bg-success).
+                                   If anything else -> Grey Badge (bg-secondary).
+                                *@
                                 <span class="badge @(pet.Status == PetStatus.Available ? "bg-success" : "bg-secondary")">
                                     @pet.Status
                                 </span>
                             </div>
                             <div class="ms-auto">
-                                @* DYNAMIC ROUTING: Passes the specific Pet ID to the Editor page *@
+                                @* DYNAMIC ROUTING:
+                                   Here I append the Pet's ID to the URL (e.g., /edit/5).
+                                   This tells the next page exactly which database row to load.
+                                *@
                                 <a href="shelter/pets/edit/@pet.Id" class="btn btn-sm btn-outline-primary rounded-pill">Edit</a>
                             </div>
                         </div>
@@ -64,19 +84,21 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Identity Verification
+        // 1. IDENTITY CHECK: Who is logged in?
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         var userId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-        // 2. Tenant Resolution (Find current Shelter)
+        // 2. TENANCY RESOLUTION: Which Shelter owns this user?
+        // I need to map the "Login User ID" to a specific "Shelter ID".
         var shelters = await ShelterRepo.GetAllAsync();
         var myShelter = shelters.FirstOrDefault(s => s.OwnerUserId == userId);
 
         if (myShelter != null)
         {
-            // 3. Filtered Query (Data Isolation)
-            // Ensures shelters only see *their own* pets, maintaining multi-tenant security
+            // 3. DATA ISOLATION:
+            // Fetch all pets, then filter strictly by ShelterId.
+            // This guarantees Shelter A never sees Shelter B's data.
             var allPets = await PetRepo.GetAllAsync();
             _myPets = allPets.Where(p => p.ShelterId == myShelter.Id);
         }

@@ -6,6 +6,10 @@
 <h1 class="text-danger">Error.</h1>
 <h2 class="text-danger">An error occurred while processing your request.</h2>
 
+@* CONDITIONAL DISPLAY:
+   We only show the Request ID if one was successfully captured.
+   This ID is crucial for developers. It acts like a "Ticket Number" to find the specific crash in the server logs.
+*@
 @if (ShowRequestId)
 {
     <p>
@@ -18,19 +22,32 @@
     Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
 </p>
 <p>
+    @* SECURITY WARNING:
+       This text explains why real users see this generic page instead of the actual code crash.
+       Showing raw exceptions (Stack Traces) to the public is a security risk because it can reveal database table names or file paths to hackers.
+    *@
     <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
     It can result in displaying sensitive information from exceptions to end users.
     For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
     and restarting the app.
 </p>
 
-@code{
+@code {
+    // CASCADING PARAMETER:
+    // This receives the current HTTP Context passed down from the server.
+    // It contains technical details about the specific web request that failed.
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
     private string? RequestId { get; set; }
+
+    // HELPER: Simple check to determine if the HTML block above should be rendered.
     private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
     protected override void OnInitialized() =>
+        // TRACING LOGIC:
+        // 1. First, try to get the 'Activity ID' (Standard .NET distributed tracing ID).
+        // 2. If that is null, fall back to the 'TraceIdentifier' from the web server context.
+        // This ensures we always have a unique code to track this specific error.
         RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
 }

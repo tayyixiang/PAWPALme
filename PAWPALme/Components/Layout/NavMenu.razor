@@ -4,23 +4,43 @@
 <div class="glass-navbar">
     <div class="container d-flex justify-content-between align-items-center">
 
+        @* BRANDING: Clicking this resets the app to the homepage *@
         <a class="navbar-brand fw-bold text-primary" href="">
             <i class="bi bi-paw-fill me-2"></i>PawPal
         </a>
 
         <div class="d-flex gap-3 align-items-center">
+            @* NAVIGATION LINKS:
+               We use <NavLink> instead of standard <a href>.
+               Why? Because NavLink automatically adds an "active" CSS class 
+               when the URL matches, allowing us to highlight the current page.
+            *@
             <NavLink class="nav-link-glass" href="" Match="NavLinkMatch.All">Home</NavLink>
             <NavLink class="nav-link-glass" href="pets">Browse Pets</NavLink>
             <NavLink class="nav-link-glass" href="shelters">Shelters</NavLink>
 
+            @* AUTHENTICATION LOGIC:
+               The <AuthorizeView> component detects the user's state.
+               It decides which block of HTML to render: <Authorized> or <NotAuthorized>.
+            *@
             <AuthorizeView>
                 <Authorized>
+                    @* VIEW FOR LOGGED-IN USERS *@
                     <NavLink class="nav-link-glass" href="my-appointments">Appointments</NavLink>
 
+                    @* ROLE-BASED ACCESS:
+                       This nested check sees if the user has the specific claim "Role: Shelter".
+                       If they do, we show the Dashboard link. Regular adopters won't see this.
+                    *@
                     <AuthorizeView Roles="Shelter" Context="innerContext">
                         <NavLink class="nav-link-glass highlight" href="shelter/dashboard">Dashboard</NavLink>
                     </AuthorizeView>
 
+                    @* SECURE LOGOUT:
+                       Logout must be a POST request (form submission), not a GET request (link click).
+                       This prevents malicious sites from logging you out via a hidden image tag.
+                       The AntiforgeryToken ensures the request actually came from our site.
+                    *@
                     <form action="Account/Logout" method="post" class="d-inline">
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="" />
@@ -30,6 +50,7 @@
                     </form>
                 </Authorized>
                 <NotAuthorized>
+                    @* VIEW FOR GUESTS *@
                     <NavLink class="nav-link-glass highlight" href="auth">Log In</NavLink>
                 </NotAuthorized>
             </AuthorizeView>
@@ -38,10 +59,12 @@
 </div>
 
 <style>
-    /* LOCAL STYLES FOR GLASS NAV */
+    /* NEUMORPHISM / GLASSMORPHISM DESIGN
+           This CSS creates the "Frosted Glass" effect used throughout the app.
+        */
     .glass-navbar {
-        background: rgba(224, 229, 236, 0.85); /* #e0e5ec with transparency */
-        backdrop-filter: blur(12px); /* LIQUID GLASS EFFECT */
+        background: rgba(224, 229, 236, 0.85); /* Semi-transparent base */
+        backdrop-filter: blur(12px); /* The blur does the actual "glass" distortion */
         border-bottom: 1px solid rgba(255, 255, 255, 0.4);
         padding: 1rem 0;
         box-shadow: 0 4px 6px rgba(0,0,0,0.02);
@@ -56,10 +79,14 @@
         transition: all 0.3s ease;
     }
 
+        /* PRESSED EFFECT:
+               When a link is active or hovered, we use inset shadows
+               to make it look like the button is pressed into the glass.
+            */
         .nav-link-glass:hover, .nav-link-glass.active {
             color: #0d6efd;
             background: #e0e5ec;
-            box-shadow: inset 4px 4px 8px #bec3c9, inset -4px -4px 8px #ffffff; /* Pressed In */
+            box-shadow: inset 4px 4px 8px #bec3c9, inset -4px -4px 8px #ffffff;
         }
 
         .nav-link-glass.highlight {

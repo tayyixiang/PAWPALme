@@ -11,23 +11,37 @@
         <p class="lead text-muted">Dedicated organizations helping pets find homes.</p>
     </div>
 
+    @* LOADING STATE: 
+       If 'shelters' is null, the async database call is still running.
+       Show a spinner to indicate activity.
+    *@
     @if (shelters == null)
     {
         <div class="d-flex justify-content-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
         </div>
     }
+    @* EMPTY STATE:
+       Database call finished, but returned 0 records.
+    *@
     else if (!shelters.Any())
     {
         <div class="alert alert-info text-center">No shelters are currently registered.</div>
     }
     else
     {
+        @* GRID LAYOUT:
+           Responsive grid that shows 1 column on mobile, 2 on tablet, and 3 on desktop.
+        *@
         <div class="row g-4">
             @foreach (var s in shelters)
             {
                 <div class="col-md-6 col-lg-4">
                     <div class="card h-100 shadow-sm hover-card">
+
+                        @* IMAGE CONTAINER: 
+                           Displays shelter logo or a fallback icon if no logo exists.
+                        *@
                         <div class="shelter-img-container">
                             @if (!string.IsNullOrEmpty(s.ImageUrl))
                             {
@@ -44,6 +58,12 @@
 
                             <p class="card-text small mb-2">
                                 <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+
+                                @* GOOGLE MAPS LINK:
+                                   I dynamically generate a Google Maps search link using the address.
+                                   Uri.EscapeDataString ensures spaces/symbols don't break the URL.
+                                   target="_blank" opens it in a new tab so the user doesn't leave our site.
+                                *@
                                 <a href="@($"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(s.Address)}")"
                                    target="_blank"
                                    class="address-link"
@@ -56,10 +76,16 @@
 
                             @if (!string.IsNullOrEmpty(s.Description))
                             {
+                                @* TEXT TRUNCATION:
+                                   The 'text-truncate' class ensures that if a shelter writes a 500-word essay,
+                                   it doesn't break the card layout. It cuts off with "..." automatically.
+                                *@
                                 <p class="card-text text-truncate text-muted">@s.Description</p>
                             }
                         </div>
+
                         <div class="card-footer bg-white border-top-0 pb-3">
+                            @* NAVIGATION: Links to the specific details page for this shelter *@
                             <a href="shelter/@s.Id" class="btn btn-outline-primary w-100">View Details & Pets</a>
                         </div>
                     </div>
@@ -74,6 +100,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // DATA FETCH:
+        // Retrieves the full list of shelters from the database.
+        // Since this page is public, no user ID filtering is needed here.
         shelters = await ShelterRepo.GetAllAsync();
     }
 }

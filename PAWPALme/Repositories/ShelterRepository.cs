@@ -4,6 +4,7 @@ using PAWPALme.Models;
 
 namespace PAWPALme.Repositories
 {
+    // IMPLEMENTATION: The "Database Manager"
     public class ShelterRepository : IShelterRepository
     {
         private readonly ApplicationDbContext _context;
@@ -13,33 +14,42 @@ namespace PAWPALme.Repositories
             _context = context;
         }
 
+        // --- PUBLIC LISTING ---
+        // Fetches the list for the "Our Partners" page.
         public async Task<IEnumerable<Shelter>> GetAllAsync()
         {
-            // Asynchronously fetches all shelters from the database
             return await _context.Shelters.ToListAsync();
         }
 
+        // --- PROFILE DETAILS ---
         public async Task<Shelter?> GetByIdAsync(int id)
         {
-            // Eager Loading: Fetches the Shelter AND its associated Pets in a single query
-            // This prevents "NullReferenceException" when trying to access shelter.Pets later
+            // EAGER LOADING (.Include):
+            // When we load a Shelter profile, we almost always want to see their pets too.
+            // This command executes a SQL JOIN to fetch the Shelter AND their Pets in one go.
             return await _context.Shelters
                 .Include(s => s.Pets)
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
+        // --- OWNER LOOKUP ---
+        // This is the link between the Login System (UserId) and the Business Data (Shelter).
+        // It allows the Dashboard to say "Welcome back, [Shelter Name]" instead of just "Welcome User".
         public async Task<Shelter?> GetByUserIdAsync(string userId)
         {
-            // Finds the specific shelter profile linked to the logged-in user's ID
             return await _context.Shelters
                 .FirstOrDefaultAsync(s => s.OwnerUserId == userId);
         }
 
+        // --- REGISTRATION CHECK ---
+        // An efficient SQL "EXISTS" query.
+        // It returns True/False immediately without loading the heavy shelter object into memory.
         public async Task<bool> UserHasShelterAsync(string userId)
         {
-            // Efficient check (EXISTS query) to see if a user has already registered a shelter
             return await _context.Shelters.AnyAsync(s => s.OwnerUserId == userId);
         }
+
+        // --- WRITE OPERATIONS ---
 
         public async Task AddAsync(Shelter shelter)
         {

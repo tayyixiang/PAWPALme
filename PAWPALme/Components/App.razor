@@ -4,16 +4,48 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    @* ROUTING BASE: 
+       This is critical. It tells the browser that all links are relative to the root "/".
+       Without this, reloading a page like "/shelter/dashboard" would break because 
+       the browser would look for CSS files inside the "/shelter/" folder. 
+    *@
     <base href="/" />
-    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
-    <link rel="stylesheet" href="app.css" />
+
+    @* STYLESHEETS: *@
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" /> @* The CSS Framework *@
+    <link rel="stylesheet" href="app.css" />                     @* Your Global Custom Styles *@
+
+    @* CSS ISOLATION BUNDLE:
+       Blazor creates this file automatically during the build.
+       It takes the specific styles from "NavMenu.razor.css", "MainLayout.razor.css", etc.,
+       and combines them into this single file so they don't conflict with each other.
+    *@
     <link rel="stylesheet" href="PAWPALme.styles.css" />
+
     <link rel="icon" type="image/png" href="favicon.png" />
+
+    @* DYNAMIC HEAD CONTENT:
+       This component listens for <PageTitle> tags on other pages.
+       If Home.razor says <PageTitle>Home</PageTitle>, this component injects "Home" 
+       into the browser tab name here.
+    *@
     <HeadOutlet />
 </head>
 
 <body>
+    @* THE ROUTER:
+       This is where the entire Blazor app lives. 
+       It looks at the URL, finds the matching @page component, wraps it in the MainLayout, 
+       and renders it right here inside the body tag.
+    *@
     <Routes />
+
+    @* BLAZOR ENGINE:
+       This script starts the framework.
+       For Blazor Server, it establishes the SignalR WebSocket connection to the server.
+       For Blazor WebAssembly, it downloads the .NET runtime to the browser.
+    *@
     <script src="_framework/blazor.web.js"></script>
 </body>
 

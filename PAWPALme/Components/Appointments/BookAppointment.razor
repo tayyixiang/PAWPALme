@@ -9,6 +9,10 @@
 @inject IAppointmentRepository ApptRepo
 @inject IPetRepository PetRepo
 @inject NavigationManager Nav
+
+@* SECURITY: The [Authorize] attribute ensures only logged-in users can access this page. 
+    If they aren't logged in, they are automatically redirected to the login screen.
+*@
 @attribute [Authorize]
 @rendermode InteractiveServer
 
@@ -25,12 +29,17 @@
                     <p class="text-muted">Schedule a time to meet your future best friend.</p>
                 </div>
 
+                @* LOADING CHECK:
+                    Since we fetch data asynchronously, 'PetModel' starts as null.
+                    We show a loading spinner until the data arrives to prevent errors.
+                *@
                 @if (PetModel == null)
                 {
                     <div class="text-center"><div class="spinner-border text-primary"></div></div>
                 }
                 else
                 {
+                    @* PET INFO CARD: A small summary so the user knows who they are booking for. *@
                     <div class="d-flex align-items-center bg-white rounded-pill p-2 shadow-sm mb-4">
                         <img src="@(PetModel.ImageUrl ?? "/images/pet-placeholder.png")"
                              class="rounded-circle" width="60" height="60" style="object-fit:cover" />
@@ -40,6 +49,10 @@
                         </div>
                     </div>
 
+                    @* FORM START:
+                        We use EditForm for built-in validation support.
+                        'OnValidSubmit' ensures the 'SubmitBooking' function only runs if all fields are valid.
+                    *@
                     <EditForm Model="Input" OnValidSubmit="SubmitBooking" FormName="book-appointment">
                         <DataAnnotationsValidator />
 
@@ -48,6 +61,7 @@
                                 <label class="ms-3 mb-1 small fw-bold text-muted">Date</label>
                                 <div class="input-group-custom">
                                     <i class="bi bi-calendar-event input-icon"></i>
+                                    @* Binds to the Date property in our input model *@
                                     <InputDate @bind-Value="Input.Date" class="form-input" />
                                 </div>
                             </div>
@@ -55,6 +69,7 @@
                                 <label class="ms-3 mb-1 small fw-bold text-muted">Time</label>
                                 <div class="input-group-custom">
                                     <i class="bi bi-clock input-icon"></i>
+                                    @* InputDateType.Time forces the browser to show a time picker *@
                                     <InputDate Type="InputDateType.Time" @bind-Value="Input.Time" class="form-input" />
                                 </div>
                             </div>
@@ -68,6 +83,7 @@
                         </div>
 
                         <div class="d-flex gap-2 mt-4">
+                            @* Cancel button takes them back to the pet details page *@
                             <a href="pet/@PetId" class="btn btn-link text-decoration-none text-muted fw-bold">Cancel</a>
                             <button type="submit" class="liquid-btn flex-grow-1">
                                 Confirm Booking
@@ -82,8 +98,12 @@
 </div>
 
 @code {
+    // CAPTURE URL DATA: This gets the 'PetId' number from the browser address bar.
     [Parameter] public int PetId { get; set; }
 
+    // FORM MODEL:
+    // We use a specific class 'BookingInput' to capture form data.
+    // 'SupplyParameterFromForm' ensures data isn't lost if the page reloads.
     [SupplyParameterFromForm]
     private BookingInput Input { get; set; } = new();
 
@@ -92,50 +112,64 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Get User
+        // 1. IDENTIFY USER:
+        // We look at the current authentication state to get the logged-in user's unique ID.
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         UserId = authState.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-        // 2. Get Pet
+        // 2. FETCH PET DATA:
+        // We use the PetRepository to get details about the pet being booked.
         if (PetId > 0)
         {
             PetModel = await PetRepo.GetByIdAsync(PetId);
+            // Safety: If the ID is invalid (pet doesn't exist), redirect to the list page.
             if (PetModel == null) Nav.NavigateTo("/pets");
         }
 
-        // 3. Set Default Date (Tomorrow)
+        // 3. SET DEFAULTS:
+        // Pre-fill the date picker to 'Tomorrow' so the user doesn't start with a blank field.
         if (Input.Date == default) Input.Date = DateTime.Now.AddDays(1);
     }
 
     private async Task SubmitBooking()
     {
+        // Final check to ensure we have both the Pet and User info before saving.
         if (PetModel != null && UserId != null)
         {
+            // CREATE ENTITY:
+            // We transfer data from the Form (Input) into the Database Object (Appointment).
             var appointment = new Appointment
             {
                 PetId = PetModel.Id,
-                ShelterId = PetModel.ShelterId,
-                AdopterUserId = UserId, // Link to current user
+                ShelterId = PetModel.ShelterId, // Links the appointment to the correct shelter
+                AdopterUserId = UserId,         // Links the appointment to the current user
                 AppointmentDate = Input.Date,
-                AppointmentTime = Input.Time.TimeOfDay, // Extract TimeSpan
+                AppointmentTime = Input.Time.TimeOfDay, // Extracts just the time part (HH:mm)
                 Notes = Input.Notes,
-                Status = AppointmentStatus.Pending
+                Status = AppointmentStatus.Pending // New appointments always start as Pending
             };
 
+            // SAVE TO DB:
+            // The repository handles the actual SQL Insert command.
             await ApptRepo.AddAsync(appointment);
+
+            // REDIRECT:
+            // Send the user to their personal dashboard to confirm the booking appeared.
             Nav.NavigateTo("my-appointments");
         }
     }
 
+    // INPUT MODEL CLASS:
+    // This defines exactly what fields appear on the form and their validation rules.
     public class BookingInput
     {
-        [Required]
+        [Required] // User must pick a date
         public DateTime Date { get; set; }
 
-        [Required]
-        public DateTime Time { get; set; } = DateTime.Today.AddHours(10); // Default 10 AM
+        [Required] // User must pick a time
+        public DateTime Time { get; set; } = DateTime.Today.AddHours(10); // Defaults to 10:00 AM
 
-        [StringLength(500)]
+        [StringLength(500)] // Limits the text to prevent database overflow
         public string? Notes { get; set; }
     }
 }

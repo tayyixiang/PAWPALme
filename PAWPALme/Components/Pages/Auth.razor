@@ -15,6 +15,10 @@
 <div class="neumorph-bg">
     <div class="d-flex flex-column align-items-center w-100">
 
+        @* VIEW STATE 1: REGISTER MODE (TOGGLE BUTTONS)
+           If the user is trying to register, we show them a choice:
+           "Are you an Adopter looking for a pet?" or "Are you a Shelter looking for a home?"
+        *@
         @if (Mode != "login")
         {
             <div class="glass-toggle-container">
@@ -29,9 +33,14 @@
             </div>
         }
 
+        @* THE MAIN CARD:
+           This container holds the actual forms.
+           It dynamically expands (.wide) if we need to show the longer Shelter registration form.
+        *@
         <div class="auth-card @(Role == "shelter" && Mode != "login" ? "wide" : "")">
 
             <div class="text-center">
+                @* DYNAMIC ICON: Changes based on role (House for Shelter, Heart for Adopter) *@
                 <div class="header-icon-wrapper @(Role == "shelter" ? "shelter" : "")">
                     @if (Role == "shelter")
                     {
@@ -39,7 +48,6 @@
                     }
                     else
                     {
-
                         <i class="bi bi-person-heart"></i>
                     }
                 </div>
@@ -51,11 +59,15 @@
                 </p>
             </div>
 
+            @* GLOBAL ERROR MESSAGE: Displays validation errors like "Invalid Password" *@
             @if (!string.IsNullOrEmpty(ErrorMessage))
             {
                 <div class="alert alert-danger py-2 small text-center rounded-pill mb-4">@ErrorMessage</div>
             }
 
+            @* ---------------------------------------------------- *@
+            @* FORM 1: LOGIN *@
+            @* ---------------------------------------------------- *@
             @if (Mode == "login")
             {
                 <EditForm Model="LoginModel" OnValidSubmit="LoginUser" FormName="login-form">
@@ -87,6 +99,9 @@
                 </div>
             }
 
+            @* ---------------------------------------------------- *@
+            @* FORM 2: REGISTER ADOPTER (SIMPLE) *@
+            @* ---------------------------------------------------- *@
             else if (Mode == "register" && Role != "shelter")
             {
                 <EditForm Model="AdopterModel" OnValidSubmit="RegisterAdopter" FormName="adopter-form">
@@ -118,6 +133,9 @@
                 </div>
             }
 
+            @* ---------------------------------------------------- *@
+            @* FORM 3: REGISTER SHELTER (COMPLEX) *@
+            @* ---------------------------------------------------- *@
             else if (Mode == "register" && Role == "shelter")
             {
                 <EditForm Model="ShelterModel" OnValidSubmit="RegisterShelter" FormName="shelter-form">
@@ -170,25 +188,29 @@
 </div>
 
 @code {
-    // --- QUERY PARAMETERS ---
+    // URL STATE MANAGEMENT:
+    // Instead of separate pages (Login.razor, Register.razor), I use Query Parameters (?mode=login).
+    // This allows me to animate transitions between forms on a single page.
     [SupplyParameterFromQuery]
     public string? Mode { get; set; } // "login" or "register"
 
     [SupplyParameterFromQuery]
     public string? Role { get; set; } // "adopter" or "shelter"
 
-    // FIX: ADDED THIS PARAMETER TO CATCH THE RETURN URL
     [SupplyParameterFromQuery]
-    public string? ReturnUrl { get; set; }
+    public string? ReturnUrl { get; set; } // Handles "redirect back after login"
 
     private string? ErrorMessage;
 
     protected override void OnInitialized()
     {
+        // Default to login mode if URL is empty
         if (string.IsNullOrEmpty(Mode)) Mode = "login";
     }
 
-    // --- DISTINCT MODELS ---
+    // FORM MODELS:
+    // I use separate models for each form to avoid validation conflicts.
+    // e.g. Shelter form requires 'Address', but Login form does not.
     [SupplyParameterFromForm(FormName = "login-form")]
     public LoginInput LoginModel { get; set; } = new();
 
@@ -198,8 +220,7 @@
     [SupplyParameterFromForm(FormName = "shelter-form")]
     public ShelterInput ShelterModel { get; set; } = new();
 
-    // --- ACTIONS ---
-
+    // --- LOGIC: LOGIN ---
     public async Task LoginUser()
     {
         var user = await UserManager.FindByEmailAsync(LoginModel.Email);
@@ -209,18 +230,20 @@
             return;
         }
 
+        // 'PasswordSignInAsync' checks the hash. 'false' means "Don't remember me" (cookie expires on close).
         var result = await SignInManager.PasswordSignInAsync(user, LoginModel.Password, false, lockoutOnFailure: false);
 
         if (result.Succeeded)
         {
-            // FIX: CHECK FOR RETURN URL FIRST
+            // INTELLIGENT REDIRECT:
+            // 1. If user was kicked here from a specific page (e.g. Booking), send them back there.
             if (!string.IsNullOrEmpty(ReturnUrl))
             {
                 Nav.NavigateTo(ReturnUrl, forceLoad: true);
                 return;
             }
 
-            // Fallback: Check Role & Redirect to Dashboard/Home
+            // 2. Otherwise, check their role. Shelters go to Dashboard, Adopters go Home.
             var roles = await UserManager.GetRolesAsync(user);
             if (roles.Contains("Shelter"))
             {
@@ -237,42 +260,54 @@
         }
     }
 
+    // --- LOGIC: REGISTER ADOPTER ---
     public async Task RegisterAdopter()
     {
         var user = new ApplicationUser { UserName = AdopterModel.Email, Email = AdopterModel.Email, FullName = AdopterModel.FullName };
+
+        // This automatically hashes the password before saving
         var result = await UserManager.CreateAsync(user, AdopterModel.Password);
 
         if (result.Succeeded)
         {
+            // Auto-login after successful registration
             await SignInManager.SignInAsync(user, isPersistent: false);
             Nav.NavigateTo("/", forceLoad: true);
         }
         else ErrorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
     }
 
+    // --- LOGIC: REGISTER SHELTER ---
     public async Task RegisterShelter()
     {
+        // Ensure the "Shelter" role actually exists in the database
         if (!await RoleManager.RoleExistsAsync("Shelter")) await RoleManager.CreateAsync(new IdentityRole("Shelter"));
 
+        // 1. Create the User Account (Login details)
         var user = new ApplicationUser { UserName = ShelterModel.Email, Email = ShelterModel.Email, FullName = ShelterModel.ShelterName };
         var result = await UserManager.CreateAsync(user, ShelterModel.Password);
 
         if (result.Succeeded)
         {
+            // 2. Assign the Role
             await UserManager.AddToRoleAsync(user, "Shelter");
+
+            // 3. Create the Shelter Profile (Business details)
             var shelter = new Shelter { Name = ShelterModel.ShelterName, Address = ShelterModel.Address, Phone = ShelterModel.Phone, OwnerUserId = user.Id };
             await ShelterRepo.AddAsync(shelter);
 
+            // 4. Link User -> Shelter (Foreign Key update)
             user.ShelterId = shelter.Id;
             await UserManager.UpdateAsync(user);
 
+            // 5. Login & Redirect
             await SignInManager.SignInAsync(user, isPersistent: false);
             Nav.NavigateTo("/shelter/dashboard", forceLoad: true);
         }
         else ErrorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
     }
 
-    // --- INPUT CLASSES ---
+    // --- DATA TRANSFER OBJECTS (DTOs) ---
     public class LoginInput
     {
         [Required] public string Email { get; set; } = "";

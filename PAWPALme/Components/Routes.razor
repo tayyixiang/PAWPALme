@@ -1,9 +1,34 @@
 ﻿@using PAWPALme.Components.Account.Shared
 
+@* ROUTER ROOT:
+   This component scans your entire project (Program.Assembly) looking for pages 
+   that have the @page "..." directive. It matches the browser URL to those pages.
+*@
 <Router AppAssembly="typeof(Program).Assembly">
+
+    @* SCENARIO 1: PAGE FOUND
+       The Router found a matching page (e.g., user went to "/pets").
+    *@
     <Found Context="routeData">
+
+        @* SECURITY WRAPPER:
+           Instead of just showing the page, we wrap it in 'AuthorizeRouteView'.
+           This component checks if the page has an [Authorize] attribute.
+           
+           - If NO security needed -> Show page.
+           - If YES security needed -> Check if user is logged in.
+        *@
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+
+            @* SCENARIO 1A: ACCESS DENIED
+               The user found the page, BUT they aren't allowed to see it.
+            *@
             <NotAuthorized Context="authState">
+
+                @* LOGIC BRANCH:
+                   1. User IS logged in, but has the WRONG Role.
+                      (e.g., An 'Adopter' trying to view 'Shelter Dashboard')
+                *@
                 @if (authState.User.Identity?.IsAuthenticated ?? false)
                 {
                     <div class="container mt-4">
@@ -13,6 +38,10 @@
                         <a class="btn btn-secondary" href="/">Go back home</a>
                     </div>
                 }
+                @* 2. User is NOT logged in at all (Guest).
+                      In this case, we don't show an error. We just redirect them 
+                      to the Login page so they can sign in.
+                *@
                 else
                 {
                     <RedirectToLogin />
@@ -20,7 +49,10 @@
             </NotAuthorized>
         </AuthorizeRouteView>
 
+        @* ACCESSIBILITY:
+           When navigating to a new page, automatically move the browser's focus 
+           to the main header (h1). This helps screen readers understand the page changed.
+        *@
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
-

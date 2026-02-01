@@ -5,24 +5,37 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IPetRepository PetRepo
 @inject NavigationManager Nav
+
+@* RENDER MODE: 
+   This must be InteractiveServer because we use @bind and filtering events.
+   Static rendering would mean the search bar wouldn't react to typing.
+*@
 @rendermode InteractiveServer
 
 <PageTitle>Browse Pets | PawPal</PageTitle>
 
 <div class="container py-4">
 
-    @* --- SEARCH BAR --- *@
+    @* --- SEARCH BAR SECTION --- *@
     <div class="row justify-content-center mb-5">
         <div class="col-lg-10">
             <div class="neumorph-bar d-flex gap-3 align-items-center p-3 flex-wrap">
                 <i class="bi bi-search text-primary fs-4 ms-2"></i>
 
+                @* REAL-TIME SEARCH:
+                   @bind:event="oninput" makes the search trigger on every keystroke,
+                   not just when the user presses Enter or clicks away.
+                   @bind:after="FilterPets" runs the filter logic instantly after the value updates.
+                *@
                 <input type="text" class="form-input flex-grow-1"
                        placeholder="Search keywords (e.g. 'Playful Golden Retriever')"
                        @bind="SearchTerm"
                        @bind:event="oninput"
                        @bind:after="FilterPets" />
 
+                @* DROPDOWN FILTER:
+                   This also triggers FilterPets immediately upon selection.
+                *@
                 <select class="form-input w-auto" @bind="SelectedSpecies" @bind:after="FilterPets">
                     <option value="">All Species</option>
                     @foreach (var species in _speciesList)
@@ -34,7 +47,7 @@
         </div>
     </div>
 
-    @* --- CONTENT AREA --- *@
+    @* --- CONTENT LOADING STATES --- *@
     @if (_isLoading)
     {
         <div class="text-center py-5">
@@ -42,6 +55,7 @@
             <p class="mt-2 text-muted">Loading pets...</p>
         </div>
     }
+    @* EMPTY STATE: Only shown if loading is done AND list is empty *@
     else if (!_filteredPets.Any())
     {
         <div class="text-center py-5 text-muted">
@@ -53,12 +67,14 @@
     }
     else
     {
+        @* --- PET GRID --- *@
         <div class="row g-4">
             @foreach (var pet in _filteredPets)
             {
                 <div class="col-md-4 col-sm-6 col-lg-3">
                     <div class="pet-liquid-card h-100">
                         <div class="img-container">
+                            @* Image Handling: Only try to load if URL exists *@
                             @if (!string.IsNullOrEmpty(pet.ImageUrl))
                             {
                                 <img src="@pet.ImageUrl" alt="@pet.Name" />
@@ -70,6 +86,7 @@
                                 </div>
                             }
 
+                            @* STATUS BADGES: Visual indicators for availability *@
                             @if (pet.Status == PetStatus.Adopted)
                             {
                                 <span class="status-badge bg-success">Adopted</span>
@@ -84,7 +101,7 @@
                             <h5 class="fw-bold mb-1">@pet.Name</h5>
                             <p class="text-muted small mb-3">@pet.Breed • @pet.Age yrs</p>
 
-                            @* --- FIX: CHANGED LINK TO 'pets/' (PLURAL) --- *@
+                            @* ROUTING FIX: Plural "pets/" ensures correct navigation to Detail Page *@
                             <a href="pets/@pet.Id" class="liquid-btn text-decoration-none d-block py-2">
                                 Meet Me
                             </a>
@@ -97,53 +114,68 @@
 </div>
 
 @code {
+    // DATA COLLECTIONS:
+    // _allPets: The master copy of data fetched from DB. Never modified after load.
+    // _filteredPets: The subset currently shown on screen. Modified by search logic.
     private IEnumerable<Pet> _allPets = new List<Pet>();
     private IEnumerable<Pet> _filteredPets = new List<Pet>();
     private bool _isLoading = true;
 
-    // Search State
+    // SEARCH STATE
     private string SearchTerm { get; set; } = "";
     private string SelectedSpecies { get; set; } = "";
 
-    // Hardcoded list
+    // CONFIGURATION: Hardcoded list for the dropdown filter
     private List<string> _speciesList = new() { "Dog", "Cat", "Rabbit", "Bird", "Other" };
 
     protected override async Task OnInitializedAsync()
     {
+        // Simulate slight delay for smoother UI transition (optional, can be removed)
         await Task.Delay(100);
+
+        // Fetch all pets ONCE.
+        // We filter in memory (client-side) rather than hitting the database for every keystroke.
+        // This is much faster for lists under ~1000 items.
         _allPets = await PetRepo.GetAllAsync();
         _filteredPets = _allPets;
         _isLoading = false;
     }
 
+    // CORE FILTERING LOGIC
     private void FilterPets()
     {
         var query = _allPets;
 
-        // 1. Species Filter
+        // 1. Apply Species Filter (if selected)
         if (!string.IsNullOrEmpty(SelectedSpecies))
         {
             query = query.Where(p => p.Species.Equals(SelectedSpecies, StringComparison.OrdinalIgnoreCase));
         }
 
-        // 2. Keyword Search
+        // 2. Apply Keyword Search (if typed)
         if (!string.IsNullOrWhiteSpace(SearchTerm))
         {
             var keywords = SearchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             query = query.Where(p =>
             {
+                // CONCATENATION:
+                // We combine all searchable fields into one string.
+                // This allows a user to search "Golden Male" and find a "Golden Retriever" that is "Male".
                 var searchableText = $"{p.Name} {p.Breed} {p.Description} {p.Size} {p.Gender}".ToLower();
+
+                // .All(k => ...) ensures ALL typed words must exist in the pet's profile.
                 return keywords.All(k => searchableText.Contains(k.ToLower()));
             });
         }
 
-        _filteredPets = query.ToList();
+        _filteredPets = query.ToList(); // Update the UI
     }
 
+    // RESET FUNCTION
     private void ClearFilters()
     {
         SearchTerm = "";
         SelectedSpecies = "";
-        FilterPets();
+        FilterPets(); // Re-run filter to restore full list
     }
 }

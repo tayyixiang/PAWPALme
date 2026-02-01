@@ -1,15 +1,25 @@
-﻿@using System.Net.Http
+﻿@* GLOBAL IMPORTS FILE
+   Everything listed here is automatically available in every .razor component in the app.
+   This saves us from copy-pasting these 20 lines into every single file.
+*@
+
+@* --- CORE .NET LIBRARIES --- *@
+@using System.Net.Http
 @using System.Net.Http.Json
-@using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.Forms
-@using Microsoft.AspNetCore.Components.Routing
-@using Microsoft.AspNetCore.Components.Web
-@using static Microsoft.AspNetCore.Components.Web.RenderMode
-@using Microsoft.AspNetCore.Components.Web.Virtualization
-@using Microsoft.JSInterop
+
+@* --- BLAZOR FRAMEWORK TOOLS --- *@
+@using Microsoft.AspNetCore.Components.Authorization  @* Enables <AuthorizeView> and security checks *@
+@using Microsoft.AspNetCore.Components.Forms          @* Enables <EditForm>, <InputText>, validation *@
+@using Microsoft.AspNetCore.Components.Routing        @* Enables <NavLink> and URL navigation *@
+@using Microsoft.AspNetCore.Components.Web            @* Basic web elements *@
+@using static Microsoft.AspNetCore.Components.Web.RenderMode @* Enables 'InteractiveServer' mode *@
+@using Microsoft.AspNetCore.Components.Web.Virtualization @* Advanced performance tools for huge lists *@
+@using Microsoft.JSInterop                            @* Allows C# to talk to JavaScript *@
+@using Microsoft.AspNetCore.Authorization             @* Enables the [Authorize] attribute *@
+
+@* --- YOUR PROJECT NAMESPACES --- *@
 @using PAWPALme
 @using PAWPALme.Components
-@using PAWPALme.Components.Pets
-@using PAWPALme.Components.Shelters
-@using PAWPALme.Components.Appointments
-@using Microsoft.AspNetCore.Authorization
+@using PAWPALme.Components.Pets          @* Makes PetEditor, PetDetails available globally *@
+@using PAWPALme.Components.Shelters      @* Makes ShelterDashboard available globally *@
+@using PAWPALme.Components.Appointments  @* Makes Booking components available globally *@

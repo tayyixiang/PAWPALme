@@ -1,17 +1,34 @@
 ﻿@inherits LayoutComponentBase
 
 <div class="page">
+    @* NAVIGATION BAR:
+       This container holds the NavMenu component we just looked at.
+       It sits at the top of the page and stays there even when you change pages.
+    *@
     <div class="top-nav-container">
         <NavMenu />
     </div>
 
+    @* MAIN CONTENT AREA:
+       The <main> tag is semantic HTML for accessibility (screen readers know this is the important part).
+    *@
     <main>
         <div class="content px-4">
+            @* THE DYNAMIC BODY:
+               This '@Body' tag is the most critical part of a Layout.
+               It acts as a placeholder. When you navigate to "/pets", the Pets.razor content is injected here.
+               When you go to "/login", the Login.razor content is injected here.
+            *@
             @Body
         </div>
     </main>
 </div>
 
+@* GLOBAL ERROR HANDLER:
+   This hidden div automatically appears if the Blazor app crashes (e.g., unhandled exception).
+   It gives the user a way to reload the app without refreshing the browser manually.
+   The styling for this is usually in app.css or MainLayout.razor.css.
+*@
 <div id="blazor-error-ui">
     An unhandled error has occurred.
     <a href="" class="reload">Reload</a>

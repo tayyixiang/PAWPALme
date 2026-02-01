@@ -6,6 +6,11 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IAppointmentRepository ApptRepo
 @inject IShelterRepository ShelterRepo
+
+@* SECURITY: 
+    This page is restricted to users with the 'Shelter' role only.
+    Adopters cannot access this dashboard. 
+*@
 @attribute [Authorize(Roles = "Shelter")]
 
 @* RENDER MODE: InteractiveServer enables real-time event handling via SignalR *@
@@ -16,12 +21,16 @@
         <h3 class="fw-bold">Manage Appointments</h3>
     </div>
 
-    @* TAB NAVIGATION: Toggles internal state variable '_activeTab' *@
+    @* TAB NAVIGATION: 
+       I use a manual tab system here controlled by the '_activeTab' variable.
+       This lets me show two different views (Requests vs Schedule) on one page without reloading.
+    *@
     <div class="d-flex justify-content-center mb-5">
         <div class="glass-tabs-container">
             <button class="btn-glass-tab @(_activeTab == "requests" ? "active" : "")"
                     @onclick='() => SwitchTab("requests")'>
                 Incoming Requests
+                @* NOTIFICATION BADGE: Shows the count of pending items only if there are any *@
                 @if (_pending.Any())
                 {
                     <span class="badge bg-danger rounded-pill ms-2">@_pending.Count()</span>
@@ -34,13 +43,13 @@
         </div>
     </div>
 
-    @* ERROR HANDLING: Feedback display *@
+    @* FEEDBACK UI: Displays errors only if something goes wrong (like a database failure) *@
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
         <div class="alert alert-danger text-center">@_errorMessage</div>
     }
 
-    @* CONDITIONAL RENDERING: View Logic for "Requests" Tab *@
+    @* VIEW 1: INCOMING REQUESTS TAB *@
     @if (_activeTab == "requests")
     {
         @if (!_pending.Any())
@@ -58,6 +67,7 @@
                                 <div>
                                     <h5 class="fw-bold mb-1 text-primary">Request for @appt.Pet?.Name</h5>
                                     <div class="text-muted small">
+                                        @* NULL CHECK: Uses '??' to display a fallback if the User object is missing *@
                                         Adopter: <strong>@(appt.AdopterUser?.FullName ?? "Unknown User")</strong>
                                     </div>
                                     @if (!string.IsNullOrEmpty(appt.Notes))
@@ -68,7 +78,10 @@
                                 <span class="badge bg-warning text-dark">Pending</span>
                             </div>
 
-                            @* INTERACTIVE FORM: Allows Shelter to set date/time before confirming *@
+                            @* INTERACTIVE FORM: 
+                               Allows the Shelter to override the proposed time before confirming.
+                               @bind syncs the input directly to the appointment object.
+                            *@
                             <div class="bg-white rounded-3 p-3 mb-3 border">
                                 <label class="small fw-bold text-muted mb-2">Set Appointment Time:</label>
                                 <div class="row g-2">
@@ -76,6 +89,10 @@
                                         <input type="date" class="form-control form-control-sm" @bind="appt.AppointmentDate" />
                                     </div>
                                     <div class="col-6">
+                                        @* TIME BINDING: 
+                                           Time inputs return strings (e.g. "14:30"), but C# uses TimeSpan.
+                                           I use 'UpdateTime' to handle this conversion manually.
+                                        *@
                                         <input type="time" class="form-control form-control-sm"
                                                value="@appt.AppointmentTime.ToString(@"hh\:mm")"
                                                @onchange="@(e => UpdateTime(appt, e.Value))" />
@@ -83,7 +100,9 @@
                                 </div>
                             </div>
 
-                            @* ACTION BUTTONS: Trigger State Transitions (Pending -> Denied/Confirmed) *@
+                            @* ACTION BUTTONS: 
+                               Calls UpdateStatus to move the item from 'Pending' to 'Confirmed' or 'Denied' 
+                            *@
                             <div class="d-flex gap-2 justify-content-end">
                                 <button class="btn btn-outline-danger btn-sm rounded-pill px-4"
                                         @onclick="() => UpdateStatus(appt, AppointmentStatus.Denied)">
@@ -101,7 +120,7 @@
         }
     }
 
-    @* CONDITIONAL RENDERING: View Logic for "Schedule" Tab *@
+    @* VIEW 2: SCHEDULED VISITS TAB *@
     @if (_activeTab == "schedule")
     {
         @if (!_scheduled.Any())
@@ -116,7 +135,10 @@
                     {
                         <div class="glass-card mb-3 p-4 border-start border-5 border-success">
 
-                            @* INLINE EDITING: Conditional rendering based on '_editingId' *@
+                            @* INLINE EDITING LOGIC: 
+                               If '_editingId' matches this card, show the edit form.
+                               Otherwise, show the read-only view. This avoids opening a separate page.
+                            *@
                             @if (_editingId == appt.Id)
                             {
                                 <h5 class="fw-bold mb-3 text-primary">Edit Appointment</h5>
@@ -173,12 +195,15 @@
 </div>
 
 @code {
-    // UI State Controls
+    // STATE MANAGEMENT:
+    // _activeTab: Controls which view is visible (Requests vs Schedule)
+    // _editingId: Tracks which specific appointment is currently being edited inline
     private string _activeTab = "requests";
     private int _editingId = 0;
     private string _errorMessage = "";
 
-    // Data Collections
+    // DATA BUCKETS:
+    // We fetch all data once, then split it into these two lists for display.
     private IEnumerable<Appointment> _pending = new List<Appointment>();
     private IEnumerable<Appointment> _scheduled = new List<Appointment>();
 
@@ -190,7 +215,7 @@
     private void SwitchTab(string tab)
     {
         _activeTab = tab;
-        _editingId = 0; // UX: Reset editing state when navigating away
+        _editingId = 0; // UX Improvement: Close any open edit forms when switching tabs to prevent confusion.
         _errorMessage = "";
     }
 
@@ -199,18 +224,21 @@
     {
         try
         {
+            // 1. Identify the current Shelter User
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var userId = authState.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
+            // 2. Find the Shelter profile associated with this login
             var shelters = await ShelterRepo.GetAllAsync();
             var myShelter = shelters.FirstOrDefault(s => s.OwnerUserId == userId);
 
             if (myShelter != null)
             {
-                // DATA ACCESS: Fetch all records associated with this tenant (Shelter)
+                // 3. TENANCY FILTER: Only fetch appointments for THIS shelter's ID.
                 var all = await ApptRepo.GetByShelterIdAsync(myShelter.Id);
 
-                // IN-MEMORY FILTERING: Segregate data into buckets based on Status Enum
+                // 4. IN-MEMORY SORTING:
+                // We split the single list into "Pending" and "Confirmed" so we can render them in different tabs.
                 _pending = all.Where(a => a.Status == AppointmentStatus.Pending).OrderBy(a => a.AppointmentDate).ToList();
                 _scheduled = all.Where(a => a.Status == AppointmentStatus.Confirmed).OrderBy(a => a.AppointmentDate).ToList();
             }
@@ -222,7 +250,8 @@
         }
     }
 
-    // UTILITY: Safe Parsing for TimeSpan
+    // HELPER: Time Parsing
+    // HTML time inputs return a string, but our database needs a TimeSpan object.
     private void UpdateTime(Appointment appt, object? value)
     {
         if (TimeSpan.TryParse(value?.ToString(), out var time))
@@ -231,14 +260,15 @@
         }
     }
 
-    // LOGIC: State Transition (Pending -> Confirmed/Denied)
+    // WORKFLOW LOGIC:
+    // This handles the transition of an appointment's lifecycle (e.g. Pending -> Confirmed).
     private async Task UpdateStatus(Appointment appt, AppointmentStatus status)
     {
         try
         {
             appt.Status = status;
-            await ApptRepo.UpdateAsync(appt); // DB Commit
-            await LoadData(); // UI Refresh
+            await ApptRepo.UpdateAsync(appt); // Save to SQL
+            await LoadData(); // Refresh the list to move the item to the correct tab
         }
         catch { _errorMessage = "Failed to update status."; }
     }
@@ -248,7 +278,7 @@
         try
         {
             await ApptRepo.UpdateAsync(appt);
-            _editingId = 0;
+            _editingId = 0; // Close the inline editor
             await LoadData();
         }
         catch { _errorMessage = "Failed to save changes."; }
