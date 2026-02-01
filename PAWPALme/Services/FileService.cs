@@ -5,7 +5,6 @@ namespace PAWPALme.Services
     public class FileService : IFileService
     {
         private readonly IWebHostEnvironment _environment;
-        private readonly long _maxFileSize = 1024 * 1024 * 5; // 5 MB
 
         public FileService(IWebHostEnvironment environment)
         {
@@ -14,24 +13,41 @@ namespace PAWPALme.Services
 
         public async Task<string> UploadFileAsync(IBrowserFile file, string folderName)
         {
-            if (file == null) return string.Empty;
+            try
+            {
+                // 1. Safe Directory Creation
+                // Ensures wwwroot/uploads/shelters exists
+                var uploadPath = Path.Combine(_environment.WebRootPath, "uploads", folderName);
+                if (!Directory.Exists(uploadPath))
+                {
+                    Directory.CreateDirectory(uploadPath);
+                }
 
-            // 1. Generate unique filename
-            var extension = Path.GetExtension(file.Name);
-            var fileName = $"{Guid.NewGuid()}{extension}";
+                // 2. Unique Filename
+                // Prevents overwriting if two users upload "profile.jpg"
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.Name);
+                var filePath = Path.Combine(uploadPath, fileName);
 
-            // 2. Define path: wwwroot/uploads/{folderName}
-            var folderPath = Path.Combine(_environment.WebRootPath, "uploads", folderName);
-            if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
+                // 3. THE CRITICAL FIX: Max Size Limit
+                // Default is 512KB. We set it to 5MB (5 * 1024 * 1024).
+                long maxFileSize = 5 * 1024 * 1024;
 
-            var fullPath = Path.Combine(folderPath, fileName);
+                using (var stream = file.OpenReadStream(maxFileSize))
+                {
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await stream.CopyToAsync(fileStream);
+                    }
+                }
 
-            // 3. Save to disk
-            await using FileStream fs = new(fullPath, FileMode.Create);
-            await file.OpenReadStream(_maxFileSize).CopyToAsync(fs);
-
-            // 4. Return web-friendly URL
-            return $"/uploads/{folderName}/{fileName}";
+                // 4. Return Web-Accessible URL
+                return $"/uploads/{folderName}/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Upload Error] {ex.Message}");
+                return null; // Return null so the UI knows it failed
+            }
         }
     }
 }

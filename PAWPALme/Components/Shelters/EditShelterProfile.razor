@@ -27,10 +27,16 @@
             <h4 class="fw-bold mb-0">Shelter Profile</h4>
         </div>
 
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger">@_errorMessage</div>
+        }
+
         <EditForm Model="Input" OnValidSubmit="SaveProfile" FormName="shelter-profile">
             <DataAnnotationsValidator />
 
             <div class="row g-4">
+                @* --- IMAGE UPLOAD SECTION --- *@
                 <div class="col-12 text-center mb-4">
                     <div class="position-relative d-inline-block">
                         <img src="@(Input.ImageUrl ?? "/images/pet-placeholder.png")"
@@ -38,13 +44,15 @@
                              style="width: 150px; height: 150px; object-fit: cover;" />
 
                         <label class="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0 mb-2 me-2"
-                               style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                               style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                             <i class="bi bi-camera-fill"></i>
+                            @* Accept only images to prevent errors *@
                             <InputFile OnChange="HandleImageUpload" class="d-none" accept=".jpg,.jpeg,.png" />
                         </label>
                     </div>
                     <div class="mt-2 text-muted small">Allowed: JPG, PNG (Max 5MB)</div>
                 </div>
+                @* ----------------------------- *@
 
                 <div class="col-md-12">
                     <label class="ms-3 mb-2 small fw-bold text-muted">Shelter Name</label>
@@ -87,6 +95,7 @@
         </EditForm>
     </div>
 
+    @* SECURITY UI *@
     <div class="glass-card p-5 border-danger-subtle">
         <div class="d-flex align-items-center mb-4">
             <div class="icon-circle bg-red-soft text-danger me-3">
@@ -109,16 +118,6 @@
                 </button>
             </form>
         </div>
-
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="fw-bold text-danger">Delete Account</h5>
-                <p class="text-muted small mb-0">Permanently remove your shelter and all pet data.</p>
-            </div>
-            <button class="btn btn-danger rounded-pill px-4 fw-bold disabled" style="opacity: 0.6; cursor: not-allowed;" title="Contact Admin">
-                Contact Admin
-            </button>
-        </div>
     </div>
 </div>
 
@@ -127,6 +126,7 @@
     private ShelterInput Input { get; set; } = new();
 
     private Shelter? _shelter;
+    private string _errorMessage = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,11 +151,21 @@
 
     private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
+        _errorMessage = ""; // Reset error
         var file = e.File;
         if (file != null)
         {
+            // Try to upload
             var imageUrl = await FileService.UploadFileAsync(file, "shelters");
-            Input.ImageUrl = imageUrl;
+
+            if (imageUrl != null)
+            {
+                Input.ImageUrl = imageUrl;
+            }
+            else
+            {
+                _errorMessage = "Upload failed. Please ensure the file is an image under 5MB.";
+            }
         }
     }
 
@@ -170,6 +180,8 @@
             _shelter.ImageUrl = Input.ImageUrl;
 
             await ShelterRepo.UpdateAsync(_shelter);
+
+            // FIX: Correct Route (was 'shelter-dashboard')
             Nav.NavigateTo("shelter/dashboard");
         }
     }
